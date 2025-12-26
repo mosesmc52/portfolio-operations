@@ -1,6 +1,6 @@
-from core.celery import app
+# accounts/tasks.py
+from __future__ import annotations
 
 
-@app.task
 def hello():
     return "hello world"

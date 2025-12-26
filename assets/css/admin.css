@@ -5,37 +5,37 @@
 /* ---------- Global ---------- */
 
 body {
-    background: #E3E3E3;
-    color: #1B3C53;
+    background: #F4F4F4;
+    color: #0C2B4E;
 }
 
 /* ---------- Header ---------- */
 
 #header {
-    background: #1B3C53;
-    color: white;
+    background: #0C2B4E;
+    color: #F4F4F4;
 }
 
 #branding h1,
 #branding h1 a:link,
 #branding h1 a:visited {
-    color: white;
+    color: #F4F4F4;
 }
 
 #header a:link,
 #header a:visited {
-    color: #E3E3E3;
+    color: #F4F4F4;
 }
 
 /* ---------- Breadcrumbs ---------- */
 
 div.breadcrumbs {
-    background: #234C6A;
-    color: #E3E3E3;
+    background: #1A3D64;
+    color: #F4F4F4;
 }
 
 div.breadcrumbs a {
-    color: #E3E3E3;
+    color: #F4F4F4;
 }
 
 div.breadcrumbs a:hover {
@@ -45,25 +45,25 @@ div.breadcrumbs a:hover {
 /* ---------- Sidebar ---------- */
 
 #nav-sidebar {
-    background: #1B3C53;
+
 }
 
 #nav-sidebar .current-app .section:link,
 #nav-sidebar .current-app .section:visited {
-    color: white;
+    color: #F4F4F4;
     font-weight: 600;
 }
 
 .toggle-nav-sidebar {
-    background-color: #1B3C53;
-    color: white;
-    border-right: 1px solid #234C6A;
+    background-color: #0C2B4E;
+    color: #F4F4F4;
+    border-right: 1px solid #1A3D64;
 }
 
 .toggle-nav-sidebar:hover,
 .toggle-nav-sidebar:focus {
-    background-color: #234C6A;
-    color: white;
+    background-color: #1A3D64;
+    color: #F4F4F4;
 }
 
 /* ---------- Modules / Panels ---------- */
@@ -71,14 +71,14 @@ div.breadcrumbs a:hover {
 .module h2,
 .module caption,
 .inline-group h2 {
-    background: #234C6A;
-    color: white;
+    background: #1A3D64;
+    color: #F4F4F4;
 }
 
 /* ---------- Headings ---------- */
 
 h1 {
-    color: #1B3C53;
+    color: #0C2B4E;
 }
 
 /* ---------- Links ---------- */
@@ -86,12 +86,12 @@ h1 {
 a,
 a:link,
 a:visited {
-    color: #456882;
+    color: #1D546C;
     text-decoration: none;
 }
 
 a:hover {
-    color: #1B3C53;
+    color: #0C2B4E;
     text-decoration: underline;
 }
 
@@ -99,8 +99,8 @@ a:hover {
 
 .object-tools a:link,
 .object-tools a:visited {
-    background: #456882;
-    color: white;
+    background: #1D546C;
+    color: #F4F4F4;
 }
 
 /* ---------- Buttons ---------- */
@@ -110,8 +110,8 @@ input[type='submit'],
 input[type='button'],
 .submit-row input,
 a.button {
-    background: #456882;
-    color: white;
+    background: #1D546C;
+    color: #F4F4F4;
     border-radius: 6px;
     font-weight: 500;
 }
@@ -119,8 +119,8 @@ a.button {
 .button.default,
 input[type='submit'].default,
 .submit-row input.default {
-    background: #234C6A;
-    color: white;
+    background: #1A3D64;
+    color: #F4F4F4;
 }
 
 /* ---------- Tables ---------- */
@@ -134,7 +134,7 @@ table {
 
 form div.help {
     font-size: 14px;
-    color: #456882;
+    color: #1D546C;
 }
 
 /* ---------- Utility ---------- */
@@ -147,17 +147,22 @@ form div.help {
 
 @media (prefers-color-scheme: dark) {
     body {
-        background: #1B3C53;
-        color: #E3E3E3;
+        background: #0C2B4E;
+        color: #F4F4F4;
     }
 
     h1 {
-        color: #E3E3E3;
+        color: #F4F4F4;
     }
 
     a,
     a:link,
     a:visited {
-        color: #E3E3E3;
+        color: #F4F4F4;
+    }
+
+    table {
+        background: #1A3D64;
+        color: #F4F4F4;
     }
 }

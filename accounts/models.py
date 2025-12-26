@@ -1,82 +1,49 @@
-# accounts/models.py
-from clients.models import Client
 from django.db import models
-from django.utils import timezone
 
 
-class Account(models.Model):
-    ALPACA = "ALPACA"
-    IBKR = "IBKR"
-    OTHER = "OTHER"
+class ClientCapitalAccount(models.Model):
+    client = models.ForeignKey("clients.Client", on_delete=models.CASCADE)
+    fund = models.ForeignKey("funds.Fund", on_delete=models.CASCADE)
 
-    CUSTODIAN_CHOICES = [
-        (ALPACA, "Alpaca"),
-        (IBKR, "Interactive Brokers"),
-        (OTHER, "Other"),
-    ]
+    units = models.DecimalField(max_digits=20, decimal_places=8)
+    nav_per_unit = models.DecimalField(max_digits=18, decimal_places=8)
 
-    ACTIVE = "active"
-    CLOSED = "closed"
-    STATUS_CHOICES = [
-        (ACTIVE, "Active"),
-        (CLOSED, "Closed"),
-    ]
-
-    client = models.ForeignKey(
-        Client, on_delete=models.CASCADE, related_name="accounts"
-    )
-
-    custodian = models.CharField(
-        max_length=20, choices=CUSTODIAN_CHOICES, default=ALPACA
-    )
-    custodian_account_masked = models.CharField(
-        max_length=32,
-        help_text="Masked account identifier (e.g., last 4 digits)",
-    )
-
-    base_currency = models.CharField(max_length=10, default="USD")
-    strategy_code = models.CharField(max_length=64, default="ETF_WKLY_V1")
-
-    opened_at = models.DateField(default=timezone.now)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ACTIVE)
+    last_valuation_date = models.DateField()
 
     class Meta:
-        unique_together = [("custodian", "custodian_account_masked")]
-
-    def __str__(self):
-        return f"{self.client.full_name} | {self.custodian} {self.custodian_account_masked}"
+        unique_together = [("client", "fund")]
 
 
-class CashFlow(models.Model):
-    DEPOSIT = "deposit"
-    WITHDRAWAL = "withdrawal"
-    FEE = "fee"
+class CapitalFlow(models.Model):
+    TYPE_SUBSCRIPTION = "SUB"
+    TYPE_REDEMPTION = "RED"
 
     FLOW_TYPE_CHOICES = [
-        (DEPOSIT, "Deposit"),
-        (WITHDRAWAL, "Withdrawal"),
-        (FEE, "Fee"),
+        (TYPE_SUBSCRIPTION, "Subscription (Deposit)"),
+        (TYPE_REDEMPTION, "Redemption (Withdraw)"),
     ]
 
-    account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="cashflows"
-    )
+    client = models.ForeignKey("clients.Client", on_delete=models.CASCADE)
+    fund = models.ForeignKey("funds.Fund", on_delete=models.CASCADE)
+
+    flow_type = models.CharField(max_length=8, choices=FLOW_TYPE_CHOICES)
+
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    nav_at_flow = models.DecimalField(max_digits=18, decimal_places=8)
+    units_delta = models.DecimalField(max_digits=20, decimal_places=8)
 
     flow_date = models.DateField()
-    flow_type = models.CharField(max_length=20, choices=FLOW_TYPE_CHOICES)
-
-    # Always store as POSITIVE; sign is derived from flow_type
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
-
-    notes = models.CharField(max_length=255, blank=True, null=True)
     external_ref = models.CharField(max_length=128, blank=True, null=True)
 
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    def signed_amount(self):
-        if self.flow_type == self.DEPOSIT:
-            return self.amount
-        return -self.amount
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fund", "client", "external_ref"],
+                name="uq_capitalflow_fund_client_external_ref",
+            )
+        ]
 
     def __str__(self):
-        return f"{self.flow_type} {self.amount} on {self.flow_date}"
+        return f"{self.client} {self.flow_type} {self.amount} on {self.flow_date}"

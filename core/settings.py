@@ -45,8 +45,10 @@ class Common(Configuration):
         "django.contrib.messages",
         "django.contrib.staticfiles",
         "admincolors",
-        "accounts",
+        "funds",
+        "trading",
         "clients",
+        "accounts",
         "performance",
         "reporting",
     ]
@@ -219,6 +221,10 @@ class Common(Configuration):
             return "django_ses.SESBackend"
 
         return "django.core.mail.backends.console.EmailBackend"
+
+    ALPACA_KEY_ID = os.getenv("ALPACA_KEY_ID")
+    ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
+    ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
 
 
 class Development(Common):

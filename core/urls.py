@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
+from django.utils.translation import gettext_lazy as _
 
 from .views import root_redirect
 
@@ -24,3 +25,6 @@ urlpatterns = [
     path("", root_redirect),
     path("admin/", admin.site.urls),
 ]
+
+
+admin.site.site_header = _("Zilla Capital")

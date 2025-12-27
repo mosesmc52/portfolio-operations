@@ -1,47 +1,41 @@
 # apps/reporting/admin.py
+# reporting/admin.py
+from __future__ import annotations
+
 from django.contrib import admin
+from django.utils.html import format_html, mark_safe
+from reporting.models import MonthlyReportArtifact
 
-from .models import Report
 
-
-@admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
-    list_display = (
-        "snapshot",
-        "fund",
-        "fund_strategy",
-        "created_at",
-        "llm_model",
-        "has_commentary_pdf",
-        "has_tearsheet_pdf",
-    )
-    list_filter = ("llm_model",)
-    search_fields = (
-        "snapshot__fund__strategy_code",
-        "snapshot__fund__name",
-        "snapshot__as_of_month",
-    )
-    readonly_fields = ("created_at", "prompt_hash", "inputs_hash")
+@admin.register(MonthlyReportArtifact)
+class MonthlyReportArtifactAdmin(admin.ModelAdmin):
+    list_display = ("snapshot", "fund", "as_of_month", "files", "created_at")
+    list_filter = ("snapshot__fund", "snapshot__as_of_month")
+    search_fields = ("snapshot__fund__strategy_code",)
+    readonly_fields = ("files", "created_at", "updated_at")
 
     def fund(self, obj):
-        return getattr(obj.snapshot, "fund", None)
+        return obj.snapshot.fund
 
-    fund.short_description = "Fund"
+    def as_of_month(self, obj):
+        return obj.snapshot.as_of_month
 
-    def fund_strategy(self, obj):
-        f = getattr(obj.snapshot, "fund", None)
-        return getattr(f, "strategy_code", "") if f else ""
+    def files(self, obj):
+        links = []
+        if obj.html_file:
+            links.append(
+                format_html('<a href="{}" target="_blank">HTML</a>', obj.html_file.url)
+            )
+        if obj.pdf_file:
+            links.append(
+                format_html('<a href="{}" target="_blank">PDF</a>', obj.pdf_file.url)
+            )
+        if obj.chart_file:
+            links.append(
+                format_html(
+                    '<a href="{}" target="_blank">Chart</a>', obj.chart_file.url
+                )
+            )
+        return mark_safe(" | ".join(links))
 
-    fund_strategy.short_description = "Strategy"
-
-    def has_commentary_pdf(self, obj):
-        return bool(getattr(obj, "commentary_pdf_path", None))
-
-    has_commentary_pdf.boolean = True
-    has_commentary_pdf.short_description = "Commentary PDF"
-
-    def has_tearsheet_pdf(self, obj):
-        return bool(getattr(obj, "tearsheet_pdf_path", None))
-
-    has_tearsheet_pdf.boolean = True
-    has_tearsheet_pdf.short_description = "Tearsheet PDF"
+    files.short_description = "Files"

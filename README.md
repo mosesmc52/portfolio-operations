@@ -3,4 +3,6 @@ App used to track quant portfolio
 
 
 # Tasks
-    - Complete 1m Agent reporting
+    - Email Report
+    - Save Artifacts
+    - Save monthly snapshot

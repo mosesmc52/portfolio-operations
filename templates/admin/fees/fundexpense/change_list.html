@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% load humanize %}
+
+{% block content_title %}
+  {{ block.super }}
+  <div style="margin-top: 8px; font-size: 14px;">
+    <strong>Total unpaid fees:</strong> ${{ unpaid_total|floatformat:2|intcomma }}
+  </div>
+{% endblock %}

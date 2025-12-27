@@ -1,34 +1,45 @@
 # reporting/models.py
 from django.db import models
 from django.utils import timezone
-from performance.models import MonthlySnapshot
 
 
-class Report(models.Model):
+class MonthlyReportArtifact(models.Model):
     snapshot = models.OneToOneField(
-        MonthlySnapshot, on_delete=models.CASCADE, related_name="report"
+        "performance.MonthlySnapshot",
+        on_delete=models.CASCADE,
+        related_name="report_artifact",
     )
 
-    tearsheet_pdf_path = models.CharField(
-        max_length=255, help_text="Path to generated tear sheet PDF"
-    )
-
-    commentary_md_path = models.CharField(
-        max_length=255,
+    # LLM-generated commentary
+    commentary = models.TextField(
         blank=True,
         null=True,
-        help_text="Path to AI-generated commentary (Markdown)",
+        help_text="LLM-generated monthly commentary (Markdown)",
     )
 
-    commentary_pdf_path = models.CharField(max_length=255, blank=True, null=True)
-
-    llm_model = models.CharField(max_length=64, blank=True, null=True)
-
-    prompt_hash = models.CharField(max_length=64, blank=True, null=True)
-
-    inputs_hash = models.CharField(max_length=64, blank=True, null=True)
+    # Generated artifacts
+    html_file = models.FileField(
+        upload_to="reports/monthly/html/",
+        null=True,
+        blank=True,
+    )
+    pdf_file = models.FileField(
+        upload_to="reports/monthly/pdf/",
+        null=True,
+        blank=True,
+    )
+    chart_file = models.FileField(
+        upload_to="reports/monthly/charts/",
+        null=True,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"Report | {self.snapshot}"
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        snap = self.snapshot
+        return f"{snap.fund.strategy_code} {snap.as_of_month:%Y-%m}"

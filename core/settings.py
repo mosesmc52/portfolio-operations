@@ -44,6 +44,7 @@ class Common(Configuration):
         "django.contrib.sessions",
         "django.contrib.messages",
         "django.contrib.staticfiles",
+        "django.contrib.humanize",
         "admincolors",
         "funds",
         "trading",
@@ -51,6 +52,7 @@ class Common(Configuration):
         "accounts",
         "performance",
         "reporting",
+        "fees",
     ]
 
     MIDDLEWARE = [

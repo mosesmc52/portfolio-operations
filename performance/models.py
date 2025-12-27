@@ -1,5 +1,8 @@
 # apps/performance/models.py
+from __future__ import annotations
+
 from django.db import models
+from django.utils import timezone
 
 
 class NAVSnapshot(models.Model):
@@ -71,26 +74,27 @@ class MonthlySnapshot(models.Model):
         related_name="monthly_snapshots",
     )
 
-    as_of_month = models.DateField(help_text="Month end date (YYYY-MM-last_day)")
+    # Month end date (always last calendar day of month)
+    as_of_month = models.DateField(help_text="Month-end date (YYYY-MM-last_day)")
 
+    # NAV / AUM
     nav_bom = models.DecimalField(
         max_digits=18,
         decimal_places=8,
         help_text="NAV at beginning of month",
     )
-
     nav_eom = models.DecimalField(
         max_digits=18,
         decimal_places=8,
         help_text="NAV at end of month",
     )
-
     aum_eom = models.DecimalField(
         max_digits=20,
         decimal_places=2,
-        help_text="AUM at month end",
+        help_text="Assets under management at month end",
     )
 
+    # Performance
     fund_return = models.DecimalField(
         max_digits=10,
         decimal_places=6,
@@ -101,35 +105,38 @@ class MonthlySnapshot(models.Model):
         max_length=16,
         default="SPY",
     )
-
     benchmark_return = models.DecimalField(
         max_digits=10,
         decimal_places=6,
+        null=True,
+        blank=True,
         help_text="Benchmark return for same period",
     )
-
     excess_return = models.DecimalField(
         max_digits=10,
         decimal_places=6,
-        help_text="Fund - benchmark",
+        null=True,
+        blank=True,
+        help_text="Fund minus benchmark return",
     )
 
+    # Strategy / model tracking
     strategy_version = models.CharField(
         max_length=64,
-        help_text="Strategy version hash or tag",
+        help_text="Strategy version, git hash, or tag",
     )
-
     model_change = models.BooleanField(
         default=False,
-        help_text="True if model/logic changed this month",
+        help_text="True if model or allocation logic changed this month",
     )
 
+    # Flexible metrics
     metrics_json = models.JSONField(
         default=dict,
         help_text="Drawdown, volatility, Sharpe, exposure stats, etc.",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = [("fund", "as_of_month")]
@@ -138,5 +145,5 @@ class MonthlySnapshot(models.Model):
             models.Index(fields=["fund", "as_of_month"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.fund.strategy_code} {self.as_of_month:%Y-%m}"

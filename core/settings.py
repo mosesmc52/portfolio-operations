@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 
 # from celery.schedules import crontab
 from configurations import Configuration, values
@@ -139,16 +140,40 @@ class Common(Configuration):
     CELERY_ACCEPT_CONTENT = ["application/json"]
     CELERY_TASK_SERIALIZER = "json"
     CELERY_RESULT_SERIALIZER = "json"
-    CELERY_TIMEZONE = "America/Denver"
+    CELERY_TIMEZONE = "America/New_York"
+    CELERY_ENABLE_UTC = True
 
     CELERY_BEAT_SCHEDULE = {
-        "hello_task": {
-            "task": "accounts.tasks.hello",
-            "schedule": dt.timedelta(seconds=60),
+        # Example: daily fee accrual (keep as-is)
+        # "accrue_mgmt_fee_daily": {
+        #     "task": "fees.tasks.accrue_mgmt_fee_daily_task",
+        #     "schedule": crontab(hour=0, minute=10),  # daily at 00:10 (server tz)
+        # },
+        # Example: orders sync (keep as-is, adjust frequency)
+        "sync_alpaca_filled_orders_last_days": {
+            "task": "trading.tasks.sync_alpaca_filled_orders_last_days_task",
+            "schedule": crontab(hour=1, minute=0),  # daily at 01:00
+            "kwargs": {"days": 3},
+        },
+        # Monthly orchestrator ONLY (previous-month report)
+        # Run on the 2nd of each month to avoid month-end data delays.
+        "run_monthly_reporting_workflow": {
+            "task": "reporting.tasks_monthly_workflow.run_monthly_reporting_workflow_task",
+            "schedule": crontab(
+                day_of_month=2,
+                hour=2,
+                minute=30,
+            ),
+            "kwargs": {
+                "benchmark_symbol": "SPY",
+                "include_only_active_clients": True,
+                "subject_prefix": "",
+                "dry_run_email": False,
+            },
         },
     }
 
-    EMAIL_FROM = values.Value("email@test.com", environ_prefix=None)
+    DEFAULT_FROM_EMAIL = values.Value("email@test.com", environ_prefix=None)
     USE_SES_EMAIL = values.BooleanValue(False, environ_prefix=None)
     AWS_SES_USE_V2 = values.BooleanValue(False, environ_prefix=None)
     AWS_SES_ACCESS_KEY_ID = values.Value("", environ_prefix=None)

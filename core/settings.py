@@ -18,11 +18,13 @@ import dj_database_url
 
 # from celery.schedules import crontab
 from configurations import Configuration, values
+from dotenv import load_dotenv
 from patches.django_ses_linesep_patch import apply_django_ses_linesep_patch
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(dotenv_path)
 
 
 apply_django_ses_linesep_patch()
@@ -148,6 +150,7 @@ class Common(Configuration):
 
     EMAIL_FROM = values.Value("email@test.com", environ_prefix=None)
     USE_SES_EMAIL = values.BooleanValue(False, environ_prefix=None)
+    AWS_SES_USE_V2 = values.BooleanValue(False, environ_prefix=None)
     AWS_SES_ACCESS_KEY_ID = values.Value("", environ_prefix=None)
     AWS_SES_SECRET_ACCESS_KEY = values.Value("", environ_prefix=None)
 

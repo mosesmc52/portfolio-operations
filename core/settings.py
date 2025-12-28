@@ -158,7 +158,7 @@ class Common(Configuration):
         # Monthly orchestrator ONLY (previous-month report)
         # Run on the 2nd of each month to avoid month-end data delays.
         "run_monthly_reporting_workflow": {
-            "task": "reporting.tasks_monthly_workflow.run_monthly_reporting_workflow_task",
+            "task": "workflows.tasks.run_monthly_reporting_workflow_task",
             "schedule": crontab(
                 day_of_month=2,
                 hour=2,
@@ -262,6 +262,11 @@ class Common(Configuration):
     )
 
     OPENAI_MODEL = values.Value("gpt-4o-mini", environ_prefix=None)
+
+    # When sentry is enabled, it is initialized in
+    # SENTRY_ENABLED = values.BooleanValue(False, environ_prefix=None)
+    # SENTRY_URL = values.SecretValue(environ_prefix=None)
+    # SENTRY_TRACE_SAMPLE_RATE = values.FloatValue(0.3, environ_prefix=None)
 
 
 class Development(Common):

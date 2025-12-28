@@ -27,7 +27,3 @@ __**Step 1: Copy the env file from the backend folder**__
 ```
     cp .env.example .env
 ```
-
-
-Tasks
-    - Add sentry

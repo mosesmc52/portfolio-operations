@@ -15,12 +15,14 @@ import os
 from pathlib import Path
 
 import dj_database_url
+import sentry_sdk
 from celery.schedules import crontab
 
 # from celery.schedules import crontab
 from configurations import Configuration, values
 from dotenv import load_dotenv
 from patches.django_ses_linesep_patch import apply_django_ses_linesep_patch
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -263,10 +265,24 @@ class Common(Configuration):
 
     OPENAI_MODEL = values.Value("gpt-4o-mini", environ_prefix=None)
 
-    # When sentry is enabled, it is initialized in
-    # SENTRY_ENABLED = values.BooleanValue(False, environ_prefix=None)
-    # SENTRY_URL = values.SecretValue(environ_prefix=None)
-    # SENTRY_TRACE_SAMPLE_RATE = values.FloatValue(0.3, environ_prefix=None)
+    # Explicit switch
+    SENTRY_ENABLED = values.BooleanValue(False, environ_prefix=None)
+
+    SENTRY_URL = values.Value("", environ_prefix=None)
+
+    # Optional: environment name / release for Sentry tagging
+    SENTRY_ENVIRONMENT = values.Value("Development", environ_prefix=None)
+    SENTRY_TRACES_SAMPLE_RATE = values.FloatValue(0.0, environ_prefix=None)
+
+    @property
+    def SENTRY_IS_ACTIVE(self) -> bool:
+        """
+        Activate if:
+          - SENTRY_ENABLED is True AND
+          - SENTRY_URL is non-empty
+        """
+        dsn = (self.SENTRY_URL or "").strip()
+        return bool(self.SENTRY_ENABLED and dsn)
 
 
 class Development(Common):
@@ -276,6 +292,7 @@ class Development(Common):
             "*",
         ]
     )
+    SENTRY_ENVIRONMENT = values.Value("Development", environ_prefix=None)
 
 
 class Staging(Common):

@@ -23,9 +23,15 @@ from django.utils.translation import gettext_lazy as _
 
 from .views import root_redirect
 
+
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
+
 urlpatterns = [
     path("", root_redirect),
     path("admin/", admin.site.urls),
+    path("sentry-debug/", trigger_error),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = _("Zilla Capital")

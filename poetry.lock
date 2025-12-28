@@ -876,6 +876,25 @@ search = ["dj-search-url"]
 testing = ["dj-database-url", "dj-email-url", "dj-search-url", "django-cache-url (>=1.0.0)"]
 
 [[package]]
+name = "django-ses"
+version = "4.5.0"
+description = "A Django email backend for Amazon's Simple Email Service (SES)"
+optional = false
+python-versions = "<4.0,>=3.8"
+files = [
+    {file = "django_ses-4.5.0-py3-none-any.whl", hash = "sha256:fa77d8de0557105f4954cb3b81baf71122aecc957d84f9beb9f3734af34e19be"},
+    {file = "django_ses-4.5.0.tar.gz", hash = "sha256:8675749f23b7bea6009c15189101ae1716e46365632bb933bb52fb6db174878d"},
+]
+
+[package.dependencies]
+boto3 = ">=1.0.0"
+django = ">=3.2"
+
+[package.extras]
+bounce = ["cryptography (>=36.0.2)", "requests (>=2.32.1)"]
+events = ["cryptography (>=36.0.2)", "requests (>=2.32.1)"]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.1"
 description = "Backport of PEP 654 (exception groups)"
@@ -2663,4 +2682,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "2b234f3b9557840544130168c91e16b60ab268635ecf2e0f7dbda1e5d9fd53df"
+content-hash = "3fdcefdb66550af0fe0a1a7f8e111c63f475c9b4fc4e3885c73442b412435fbe"

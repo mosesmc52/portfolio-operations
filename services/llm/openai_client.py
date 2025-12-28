@@ -21,7 +21,7 @@ class OpenAITextService:
         self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
 
     def generate_commentary(
-        self, *, system: str, user: str, model: str = "gpt-4o-mini"
+        self, *, system: str, user: str, model: str = os.getenv("OPENAI_MODEL")
     ) -> LLMResult:
         # Responses API is recommended for new projects.
         # Keep it simple: request text output.

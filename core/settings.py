@@ -18,12 +18,14 @@ import dj_database_url
 
 # from celery.schedules import crontab
 from configurations import Configuration, values
-from dotenv import load_dotenv
+from patches.django_ses_linesep_patch import apply_django_ses_linesep_patch
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = os.path.join(BASE_DIR, ".env")
-load_dotenv(dotenv_path)
+
+
+apply_django_ses_linesep_patch()
 
 
 class Common(Configuration):
@@ -144,6 +146,7 @@ class Common(Configuration):
         },
     }
 
+    EMAIL_FROM = values.Value("email@test.com", environ_prefix=None)
     USE_SES_EMAIL = values.BooleanValue(False, environ_prefix=None)
     AWS_SES_ACCESS_KEY_ID = values.Value("", environ_prefix=None)
     AWS_SES_SECRET_ACCESS_KEY = values.Value("", environ_prefix=None)
@@ -224,9 +227,13 @@ class Common(Configuration):
 
         return "django.core.mail.backends.console.EmailBackend"
 
-    ALPACA_KEY_ID = os.getenv("ALPACA_KEY_ID")
-    ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
-    ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+    ALPACA_KEY_ID = values.Value("", environ_prefix=None)
+    ALPACA_SECRET_KEY = values.Value("", environ_prefix=None)
+    ALPACA_BASE_URL = values.Value(
+        "https://paper-api.alpaca.markets", environ_prefix=None
+    )
+
+    OPENAI_MODEL = values.Value("gpt-4o-mini", environ_prefix=None)
 
 
 class Development(Common):

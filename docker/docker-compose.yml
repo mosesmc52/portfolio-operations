@@ -1,0 +1,24 @@
+version: "3.7"
+
+services:
+  web:
+    container_name: portfolio-operations
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    restart: unless-stopped
+
+  scheduler:
+    container_name: portfolio-operations-scheduler
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: supervisord -c /etc/supervisor/supervisord.conf
+    env_file:
+      - ../.env
+    restart: unless-stopped

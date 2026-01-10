@@ -11,20 +11,20 @@ SHELL := /bin/bash
 # ---- Configurable Variables ----
 PROJECT        ?= portfolio-operations
 COMPOSE        ?= docker compose
-LOCAL_FILE     ?= docker-compose.local.yml
-PROD_FILE      ?= docker-compose.yml
+
+# Put all Docker files under ./docker
+DOCKER_DIR     ?= docker
+LOCAL_FILE     ?= $(DOCKER_DIR)/docker-compose.local.yml
+PROD_FILE      ?= $(DOCKER_DIR)/docker-compose.cron.yml
+
 SERVICE        ?= web
+SCHED_SERVICE  ?= scheduler
 
 # Django management entrypoints
 DJANGO_MANAGE  ?= python manage.py
 DJANGO_SHELL   ?= shell
 
 # Log controls
-# Examples:
-#   make logs                # local, follow, all services
-#   make logs SERVICE=web    # local, follow, one service
-#   make logs LINES=200      # local, follow, last 200 lines
-#   make prod-logs           # production, follow
 LINES          ?= 200
 FOLLOW         ?= 1
 
@@ -36,32 +36,34 @@ PROD_STACK  = -p $(PROJECT) -f $(PROD_FILE)
 help:
 	@echo ""
 	@echo "Usage:"
-	@echo "  make local-up              Start local stack (foreground)"
-	@echo "  make local-up-d            Start local stack (detached)"
-	@echo "  make local-down            Stop local stack"
-	@echo "  make local-build           Build local images"
-	@echo "  make local-restart         Restart local stack"
+	@echo "  make local-up               Start local stack (foreground)"
+	@echo "  make local-up-d             Start local stack (detached)"
+	@echo "  make local-down             Stop local stack"
+	@echo "  make local-build            Build local images"
+	@echo "  make local-restart          Restart local stack"
 	@echo ""
-	@echo "  make prod-up               Start production stack (detached)"
-	@echo "  make prod-down             Stop production stack"
-	@echo "  make prod-build            Build production images"
-	@echo "  make prod-restart          Restart production stack"
+	@echo "  make prod-up                Start production stack (detached)"
+	@echo "  make prod-down              Stop production stack"
+	@echo "  make prod-build             Build production images"
+	@echo "  make prod-restart           Restart production stack"
 	@echo ""
-	@echo "  make logs                  Tail local logs (all or SERVICE=...)"
-	@echo "  make prod-logs             Tail production logs (all or SERVICE=...)"
+	@echo "  make logs                   Tail local logs (SERVICE=... optional)"
+	@echo "  make prod-logs              Tail production logs (SERVICE=... optional)"
+	@echo "  make sched-logs             Tail local scheduler logs"
+	@echo "  make prod-sched-logs        Tail production scheduler logs"
 	@echo ""
-	@echo "  make shell                 Open Django shell (local)"
-	@echo "  make bash                  Open bash in the container (local)"
-	@echo "  make manage CMD='check'    Run manage.py command (local)"
-	@echo "  make migrate               Run migrations (local)"
-	@echo "  make makemigrations        Make migrations (local)"
-	@echo "  make createsuperuser       Create Django admin user (local)"
+	@echo "  make shell                  Open Django shell (local)"
+	@echo "  make bash                   Open bash in the container (local)"
+	@echo "  make manage CMD='check'     Run manage.py command (local)"
+	@echo "  make migrate                Run migrations (local)"
+	@echo "  make makemigrations         Make migrations (local)"
+	@echo "  make createsuperuser        Create Django admin user (local)"
 	@echo ""
-	@echo "  make clean                 Stop local stack (keep volumes)"
-	@echo "  make clean-prod            Stop production stack (keep volumes)"
-	@echo "  make clean-all             FULL local reset (delete volumes)"
-	@echo "  make clean-images          Remove unused Docker images"
-	@echo "  make clean-system          Nuclear Docker reset"
+	@echo "  make clean                  Stop local stack (keep volumes)"
+	@echo "  make clean-prod             Stop production stack (keep volumes)"
+	@echo "  make clean-all              FULL local reset (delete volumes)"
+	@echo "  make clean-images           Remove unused Docker images"
+	@echo "  make clean-system           Nuclear Docker reset"
 	@echo ""
 
 # ================================
@@ -71,6 +73,10 @@ help:
 .PHONY: local-up
 local-up:
 	$(COMPOSE) $(LOCAL_STACK) up
+
+.PHONY: local-up-d
+local-up-d:
+	$(COMPOSE) $(LOCAL_STACK) up -d
 
 .PHONY: local-down
 local-down:
@@ -140,24 +146,36 @@ prod-logs:
 		fi; \
 	fi
 
+# Local scheduler logs (follow by default).
+.PHONY: sched-logs
+sched-logs:
+	if [[ "$(FOLLOW)" == "1" ]]; then \
+		$(COMPOSE) $(LOCAL_STACK) logs -f --tail=$(LINES) $(SCHED_SERVICE); \
+	else \
+		$(COMPOSE) $(LOCAL_STACK) logs --tail=$(LINES) $(SCHED_SERVICE); \
+	fi
+
+# Production scheduler logs (follow by default).
+.PHONY: prod-sched-logs
+prod-sched-logs:
+	if [[ "$(FOLLOW)" == "1" ]]; then \
+		$(COMPOSE) $(PROD_STACK) logs -f --tail=$(LINES) $(SCHED_SERVICE); \
+	else \
+		$(COMPOSE) $(PROD_STACK) logs --tail=$(LINES) $(SCHED_SERVICE); \
+	fi
+
 # ================================
 # Django Management (Local)
 # ================================
 
-# Open Django shell
 .PHONY: shell
 shell:
 	$(COMPOSE) $(LOCAL_STACK) exec $(SERVICE) $(DJANGO_MANAGE) $(DJANGO_SHELL)
 
-# Open an interactive bash session in the service container
 .PHONY: bash
 bash:
 	$(COMPOSE) $(LOCAL_STACK) exec $(SERVICE) bash
 
-# Run arbitrary manage.py commands:
-#   make manage CMD="check"
-#   make manage CMD="createsuperuser"
-#   make manage CMD="dbshell"
 .PHONY: manage
 manage:
 	: $${CMD:?Usage: make manage CMD='your_command [args]'}

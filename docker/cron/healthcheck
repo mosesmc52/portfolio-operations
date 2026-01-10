@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+*/5 * * * * root \
+  /app/scripts/manage_wrapper.sh healthcheck --json \
+  >> /proc/1/fd/1 2>> /proc/1/fd/2

@@ -1,0 +1,9 @@
+30 2 * * * root \
+  FUND_ID=${FUND_ID:-1} \
+  DAYS=${ALPACA_SYNC_DAYS:-7} \
+  LIMIT=${ALPACA_SYNC_LIMIT:-500} \
+  /app/scripts/manage_wrapper.sh sync_alpaca_filled_orders \
+    --fund-id=$$FUND_ID \
+    --days=$$DAYS \
+    --limit=$$LIMIT \
+  >> /proc/1/fd/1 2>> /proc/1/fd/2

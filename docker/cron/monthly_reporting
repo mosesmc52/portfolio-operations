@@ -1,0 +1,11 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Monthly reporting (runs on the 1st; generates previous-month report)
+15 3 1 * * root \
+  flock -n /tmp/monthly_reporting.lock \
+  /app/scripts/manage_wrapper.sh run_monthly_reporting_workflow \
+    --async \
+    --benchmark-symbol=SPY \
+    --subject-prefix="[Monthly Report] " \
+  >> /proc/1/fd/1 2>> /proc/1/fd/2

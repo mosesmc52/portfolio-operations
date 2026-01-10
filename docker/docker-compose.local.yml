@@ -1,0 +1,28 @@
+version: "3.7"
+
+services:
+  web:
+    container_name: portfolio-operations
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.local
+    stdin_open: true
+    tty: true
+    command: python manage.py runserver 0.0.0.0:8000 --insecure
+    volumes:
+      - ..:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+
+  scheduler:
+    container_name: portfolio-operations-scheduler
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.local
+    command: supervisord -c /etc/supervisor/supervisord.conf
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env

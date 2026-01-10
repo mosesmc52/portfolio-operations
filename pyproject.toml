@@ -24,6 +24,7 @@ alpaca-py = "^0.43.2"
 reportlab = "^4.4.7"
 django-ses = "4.5.0"
 sentry-sdk = {extras = ["django"], version = "^2.48.0"}
+gunicorn = "^23.0.0"
 
 
 [build-system]

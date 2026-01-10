@@ -1,0 +1,14 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Daily DB backup at 02:10 UTC, retain 30 days
+10 2 * * * root \
+  flock -n /tmp/backup_operations_db.lock \
+  /app/scripts/manage_wrapper.sh backup_operations_db \
+    --db-path=/data/operations.db \
+    --prefix=backups/operations \
+    --filename=operations \
+    --max-days=30 \
+    --gzip \
+    --acl=private \
+  >> /proc/1/fd/1 2>> /proc/1/fd/2

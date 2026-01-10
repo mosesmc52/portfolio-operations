@@ -60,6 +60,7 @@ class Common(Configuration):
         "performance",
         "reporting",
         "fees",
+        "operations",
     ]
 
     MIDDLEWARE = [
@@ -99,7 +100,7 @@ class Common(Configuration):
 
     DATABASES = {
         "default": dj_database_url.config(
-            default="sqlite:////data/operations.db",
+            default=f"sqlite:///{(BASE_DIR / 'data/operations.db').as_posix()}",
             conn_max_age=600,
         )
     }

@@ -99,7 +99,7 @@ class Common(Configuration):
 
     DATABASES = {
         "default": dj_database_url.config(
-            default="sqlite:///operations.db",
+            default="sqlite:////data/operations.db",
             conn_max_age=600,
         )
     }

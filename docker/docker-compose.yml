@@ -11,6 +11,8 @@ services:
       - "8000:8000"
     env_file:
       - ../.env
+    volumes:
+      - operations-data:/data
     restart: unless-stopped
 
   scheduler:
@@ -21,4 +23,9 @@ services:
     command: supervisord -c /etc/supervisor/supervisord.conf
     env_file:
       - ../.env
+    volumes:
+      - operations-data:/data
     restart: unless-stopped
+
+volumes:
+  operations-data:

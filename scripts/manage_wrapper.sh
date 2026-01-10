@@ -17,7 +17,8 @@ fi
 
 # Sensible defaults
 export PYTHONUNBUFFERED=1
-export DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-config.settings.production}
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-core.settings}"
+export DJANGO_CONFIGURATION="${DJANGO_CONFIGURATION:-Common}"
 
 # ----------------------------------------
 # Execution

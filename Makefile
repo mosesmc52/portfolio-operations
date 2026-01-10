@@ -37,15 +37,19 @@ help:
 	@echo ""
 	@echo "Usage:"
 	@echo "  make local-up               Start local stack (foreground)"
-	@echo "  make local-up-d             Start local stack (detached)"
+	@echo "  make local-upd             Start local stack (detached)"
 	@echo "  make local-down             Stop local stack"
 	@echo "  make local-build            Build local images"
 	@echo "  make local-restart          Restart local stack"
+	@echo "  make local-shell           Open bash shell in local web container"
+	@echo "  make local-sched-shell     Open bash shell in local scheduler container"
 	@echo ""
 	@echo "  make prod-up                Start production stack (detached)"
 	@echo "  make prod-down              Stop production stack"
 	@echo "  make prod-build             Build production images"
 	@echo "  make prod-restart           Restart production stack"
+	@echo "  make prod-shell            Open bash shell in production web container"
+	@echo "  make prod-sched-shell      Open bash shell in production scheduler container"
 	@echo ""
 	@echo "  make logs                   Tail local logs (SERVICE=... optional)"
 	@echo "  make prod-logs              Tail production logs (SERVICE=... optional)"
@@ -58,6 +62,8 @@ help:
 	@echo "  make migrate                Run migrations (local)"
 	@echo "  make makemigrations         Make migrations (local)"
 	@echo "  make createsuperuser        Create Django admin user (local)"
+	@echo "  make prod-django-shell      Open Django shell (production)"
+	@echo "  make prod-createsuperuser   Create Django admin user (production)"
 	@echo ""
 	@echo "  make clean                  Stop local stack (keep volumes)"
 	@echo "  make clean-prod             Stop production stack (keep volumes)"
@@ -75,7 +81,7 @@ local-up:
 	$(COMPOSE) $(LOCAL_STACK) up
 
 .PHONY: local-up-d
-local-up-d:
+local-upd:
 	$(COMPOSE) $(LOCAL_STACK) up -d
 
 .PHONY: local-down
@@ -194,6 +200,19 @@ createsuperuser:
 	$(COMPOSE) $(LOCAL_STACK) exec $(SERVICE) $(DJANGO_MANAGE) createsuperuser
 
 # ================================
+# Django Management (Production)
+# ================================
+
+.PHONY: prod-django-shell
+prod-django-shell:
+	$(COMPOSE) $(PROD_STACK) exec $(SERVICE) $(DJANGO_MANAGE) $(DJANGO_SHELL)
+
+.PHONY: prod-createsuperuser
+prod-createsuperuser:
+	$(COMPOSE) $(PROD_STACK) exec $(SERVICE) $(DJANGO_MANAGE) createsuperuser
+
+
+# ================================
 # Cleanup Targets
 # ================================
 
@@ -221,3 +240,25 @@ clean-images:
 clean-system:
 	@echo "FULL Docker system prune (containers, images, networks, volumes)"
 	docker system prune -a --volumes
+
+
+# ================================
+# Interactive Shells
+# ================================
+
+.PHONY: local-shell
+local-shell:
+	$(COMPOSE) $(LOCAL_STACK) exec $(SERVICE) bash
+
+.PHONY: prod-shell
+prod-shell:
+	$(COMPOSE) $(PROD_STACK) exec $(SERVICE) bash
+
+
+.PHONY: local-sched-shell
+local-sched-shell:
+	$(COMPOSE) $(LOCAL_STACK) exec $(SCHED_SERVICE) bash
+
+.PHONY: prod-sched-shell
+prod-sched-shell:
+	$(COMPOSE) $(PROD_STACK) exec $(SCHED_SERVICE) bash

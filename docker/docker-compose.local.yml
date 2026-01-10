@@ -11,10 +11,12 @@ services:
     command: python manage.py runserver 0.0.0.0:8000 --insecure
     volumes:
       - ..:/app
+      - ../data:/data
     ports:
       - "8000:8000"
     env_file:
       - ../.env
+
 
   scheduler:
     container_name: portfolio-operations-scheduler
@@ -24,5 +26,6 @@ services:
     command: supervisord -c /etc/supervisor/supervisord.conf
     volumes:
       - ..:/app
+      - ../data:/data
     env_file:
       - ../.env

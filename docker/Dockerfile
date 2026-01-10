@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     supervisor \
     bash \
+    procps \
  && rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------

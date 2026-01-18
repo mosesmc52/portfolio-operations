@@ -231,9 +231,9 @@ class Common(Configuration):
 
     @property
     def STATIC_ROOT(self):
-        if not self.USE_S3_STORAGE:
-            return os.path.join(BASE_DIR, "static")
-        return ""
+        if self.USE_S3_STORAGE:
+            return ""
+        return os.environ.get("STATIC_ROOT", os.path.join(BASE_DIR, "static"))
 
     @property
     def MEDIA_URL(self):
@@ -245,9 +245,9 @@ class Common(Configuration):
 
     @property
     def MEDIA_ROOT(self):
-        if not self.USE_S3_STORAGE:
-            return os.path.join(BASE_DIR, "media")
-        return ""
+        if self.USE_S3_STORAGE:
+            return None
+        return os.environ.get("MEDIA_ROOT", os.path.join(BASE_DIR, "media"))
 
     @property
     def EMAIL_BACKEND(self):

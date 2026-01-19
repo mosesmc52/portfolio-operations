@@ -287,16 +287,22 @@ class Common(Configuration):
 
 class Development(Common):
     DEBUG = values.BooleanValue(True, environ_prefix=None)
-    ALLOWED_HOSTS = values.ListValue(
-        [
-            "*",
-        ]
-    )
+    ALLOWED_HOSTS = values.ListValue(default=[])
     SENTRY_ENVIRONMENT = values.Value("Development", environ_prefix=None)
+
+    CSRF_TRUSTED_ORIGINS = values.ListValue(
+        default=[],
+        separator=",",
+    )
+
+    CSRF_COOKIE_SECURE = values.BooleanValue(default=True)
+    SESSION_COOKIE_SECURE = values.BooleanValue(default=True)
+
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 class Staging(Common):
-    ALLOWED_HOSTS = values.ListValue(["localhost", "0.0.0.0", "scorpyourllc.com"])
+    pass
 
 
 class Production(Common):

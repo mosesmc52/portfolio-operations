@@ -1,5 +1,22 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
-*/2 * * * * root bash -lc 'set -euo pipefail; echo "[cron] $(date) whoami=$(whoami) pwd=$(pwd)"; env | sort | egrep "DJANGO|DATABASE|SQLITE|ENV|PATH|TZ" || true; flock -w 10 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck; echo "[cron] rc=$? $(date)"' >> /proc/1/fd/1 2>> /proc/1/fd/2
+*/2 * * * * root bash -lc 'set -euo pipefail; \
+  echo "[cron] $(date) whoami=$(whoami) pwd=$(pwd)"; \
+  python - <<PY
+import os
+from django.conf import settings
+os.environ.setdefault("DJANGO_SETTINGS_MODULE","core.settings")
+try:
+    import django; django.setup()
+    print("DB_NAME:", settings.DATABASES["default"].get("NAME"))
+except Exception as e:
+    print("DJANGO_SETUP_ERROR:", repr(e))
+PY
+  ls -la /data || true; \
+  ls -la /data/operations.db || true; \
+  stat /data/operations.db 2>/dev/null || true; \
+  flock -w 10 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck; \
+' >> /proc/1/fd/1 2>> /proc/1/fd/2
+
 #*/1 * * * * root flock -w 10 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck >> /proc/1/fd/1 2>> /proc/1/fd/2

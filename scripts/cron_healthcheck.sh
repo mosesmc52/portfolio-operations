@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[cron] $(date) whoami=$(whoami) pwd=$(pwd)"
+APP_ROOT="/app"
+cd "$APP_ROOT"
 
-export DJANGO_SETTINGS_MODULE=core.settings
+# Ensure Django project is importable under cron
+export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
 
-python - <<'PY'
-import os
-from django.conf import settings
+# Load runtime env explicitly (cron-safe)
+if [[ -f "$APP_ROOT/.env.runtime" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$APP_ROOT/.env.runtime"
+  set +a
+fi
 
-try:
-    import django
-    django.setup()
-    print("DB_NAME:", settings.DATABASES["default"].get("NAME"))
-except Exception as e:
-    print("DJANGO_SETUP_ERROR:", repr(e))
-PY
+export PYTHONUNBUFFERED=1
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-core.settings}"
+export DJANGO_CONFIGURATION="${DJANGO_CONFIGURATION:-Common}"
 
-ls -la /data || true
-ls -la /data/operations.db || true
-stat /data/operations.db 2>/dev/null || true
-
-flock -w 10 /tmp/operations_db.lock \
+# Optional: serialize with other jobs touching sqlite
+# (use same lock file across ALL sqlite-touching cron jobs)
+exec flock -w 60 /tmp/operations_db.lock \
   /app/scripts/manage_wrapper.sh healthcheck

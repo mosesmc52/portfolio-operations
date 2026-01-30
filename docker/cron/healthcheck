@@ -1,6 +1,8 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
-*/2 * * * * root /bin/bash /app/scripts/cron_healthcheck.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 
+*/2 * * * * root bash -lc 'cd /app && exec /app/scripts/manage_wrapper.sh healthcheck' >> /proc/1/fd/1 2>> /proc/1/fd/2
+
+#*/2 * * * * root /bin/bash /app/scripts/cron_healthcheck.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 #*/1 * * * * root flock -w 10 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck >> /proc/1/fd/1 2>> /proc/1/fd/2

@@ -1,7 +1,4 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
-* * * * * root \
-  flock -w 10 /tmp/operations_db.lock \
-  /app/scripts/manage_wrapper.sh healthcheck \
-  >> /proc/1/fd/1 2>> /proc/1/fd/2
+*/1 * * * * root flock -w 10 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck >> /proc/1/fd/1 2>> /proc/1/fd/2

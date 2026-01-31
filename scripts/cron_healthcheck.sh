@@ -55,7 +55,28 @@ echo "[cron] PYTHONPATH=$PYTHONPATH"
 
 # SQLite specific sanity
 if [[ "$DATABASE_URL" == sqlite:* ]]; then
-  DB_PATH="${DATABASE_URL#sqlite:////}"
+  # DATABASE_URL examples:
+  #   sqlite:////data/operations.db   -> /data/operations.db
+  #   sqlite://///absolute/path.db    -> /absolute/path.db
+  #   sqlite:///relative/path.db      -> relative/path.db (rare)
+  url="${DATABASE_URL}"
+
+  # Remove scheme
+  path="${url#sqlite:}"
+
+  # path now starts with ///... or ////...
+  # Convert "////X" -> "/X" and "///X" -> "X"
+  if [[ "$path" == "////"* ]]; then
+    DB_PATH="/${path#////}"
+  elif [[ "$path" == "///"* ]]; then
+    DB_PATH="${path#///}"
+  else
+    # Fallback
+    DB_PATH="$path"
+  fi
+
+  echo "[cron] sqlite db path resolved: $DB_PATH"
+
   if [[ ! -f "$DB_PATH" ]]; then
     echo "[cron][ERROR] sqlite file missing: $DB_PATH"
     ls -la "$(dirname "$DB_PATH")" || true

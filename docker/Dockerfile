@@ -36,10 +36,20 @@ RUN pip install --no-cache-dir poetry \
 COPY . /app
 
 # -------------------------------------------------
-# Wrapper entrypoints
+# Script entrypoints (wrapper + cron scripts)
 # -------------------------------------------------
 COPY scripts/manage_wrapper.sh /app/scripts/manage_wrapper.sh
-RUN chmod +x /app/scripts/manage_wrapper.sh
+COPY scripts/cron_healthcheck.sh /app/scripts/cron_healthcheck.sh
+COPY scripts/cron_backup.sh /app/scripts/cron_backup.sh
+COPY scripts/cron_monthly_reporting.sh /app/scripts/cron_monthly_reporting.sh
+COPY scripts/cron_sync_alpaca_fills.sh /app/scripts/cron_sync_alpaca_fills.sh
+
+RUN chmod +x \
+    /app/scripts/manage_wrapper.sh \
+    /app/scripts/cron_healthcheck.sh \
+    /app/scripts/cron_backup.sh \
+    /app/scripts/cron_monthly_reporting.sh \
+    /app/scripts/cron_sync_alpaca_fills.sh
 
 # -------------------------------------------------
 # Cron + Supervisor configuration
@@ -47,8 +57,14 @@ RUN chmod +x /app/scripts/manage_wrapper.sh
 COPY docker/cron /etc/cron.d
 COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 
-RUN chmod 0644 /etc/cron.d/*
-
+# Debian cron requires 0644 and newline endings
+RUN set -euo pipefail; \
+    chmod 0644 /etc/cron.d/*; \
+    sed -i 's/\r$//' /etc/cron.d/*; \
+    for f in /etc/cron.d/*; do \
+      [ -f "$f" ] || continue; \
+      tail -c 1 "$f" | read -r _ || echo >> "$f"; \
+    done
 
 # -------------------------------------------------
 # Default command (scheduler container)

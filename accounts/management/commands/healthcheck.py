@@ -127,57 +127,56 @@ class Command(BaseCommand):
             "timezone": settings.TIME_ZONE,
         }
 
+    def _check_database(self):
+        info = {}
 
-def _check_database(self):
-    info = {}
+        try:
+            db_settings = settings.DATABASES["default"]
+            db_path = db_settings.get("NAME")
 
-    try:
-        db_settings = settings.DATABASES["default"]
-        db_path = db_settings.get("NAME")
+            info["engine"] = db_settings.get("ENGINE")
+            info["path"] = db_path
+            info["cwd"] = os.getcwd()
 
-        info["engine"] = db_settings.get("ENGINE")
-        info["path"] = db_path
-        info["cwd"] = os.getcwd()
+            # --------------------------
+            # File checks (SQLite only)
+            # --------------------------
+            if db_path and isinstance(db_path, str) and db_path.startswith("/"):
+                info["exists"] = os.path.exists(db_path)
+                if info["exists"]:
+                    st = os.stat(db_path)
+                    info["size_bytes"] = st.st_size
+                    info["mode"] = oct(st.st_mode)
+                    info["uid"] = st.st_uid
+                    info["gid"] = st.st_gid
+                else:
+                    return {"error": f"DB file does not exist: {db_path}", **info}
 
-        # --------------------------
-        # File checks (SQLite only)
-        # --------------------------
-        if db_path and isinstance(db_path, str) and db_path.startswith("/"):
-            info["exists"] = os.path.exists(db_path)
-            if info["exists"]:
-                st = os.stat(db_path)
-                info["size_bytes"] = st.st_size
-                info["mode"] = oct(st.st_mode)
-                info["uid"] = st.st_uid
-                info["gid"] = st.st_gid
-            else:
-                return {"error": f"DB file does not exist: {db_path}", **info}
+            # --------------------------
+            # Retry open (handles locks)
+            # --------------------------
+            last_err = None
+            for _ in range(3):
+                try:
+                    db = connections["default"]
+                    with db.cursor() as cursor:
+                        cursor.execute("SELECT 1;")
+                        row = cursor.fetchone()
+                    info["ping"] = row[0]
+                    return info
 
-        # --------------------------
-        # Retry open (handles locks)
-        # --------------------------
-        last_err = None
-        for _ in range(3):
-            try:
-                db = connections["default"]
-                with db.cursor() as cursor:
-                    cursor.execute("SELECT 1;")
-                    row = cursor.fetchone()
-                info["ping"] = row[0]
-                return info
+                except Exception as e:
+                    last_err = e
+                    time.sleep(1)
 
-            except Exception as e:
-                last_err = e
-                time.sleep(1)
+            raise last_err
 
-        raise last_err
-
-    except Exception as e:
-        return {
-            "error": str(e),
-            "trace": traceback.format_exc(limit=3),
-            **info,
-        }
+        except Exception as e:
+            return {
+                "error": str(e),
+                "trace": traceback.format_exc(limit=3),
+                **info,
+            }
 
     def _check_migrations(self):
         executor = MigrationExecutor(connections["default"])

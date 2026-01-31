@@ -1,9 +1,9 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
-*/2 * * * * root /bin/bash -lc 'echo "[cron-env] $(date)"; env | sort | egrep "DATABASE_URL|DJANGO|SQLITE|PYTHONPATH|PATH|HOME" || true' >> /proc/1/fd/1 2>> /proc/1/fd/2
+#*/2 * * * * root /bin/bash -lc 'echo "[cron-env] $(date)"; env | sort | egrep "DATABASE_URL|DJANGO|SQLITE|PYTHONPATH|PATH|HOME" || true' >> /proc/1/fd/1 2>> /proc/1/fd/2
 
-#*/2 * * * * root /bin/bash /app/scripts/cron_healthcheck.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
+*/2 * * * * root /bin/bash /app/scripts/cron_healthcheck.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 
 #*/2 * * * * root cd /app && PYTHONPATH=/app flock -w 60 /tmp/operations_db.lock /app/scripts/manage_wrapper.sh healthcheck >> /proc/1/fd/1 2>> /proc/1/fd/2
 

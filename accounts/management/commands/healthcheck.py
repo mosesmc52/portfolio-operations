@@ -13,6 +13,7 @@ from django.core.cache import caches
 from django.core.management.base import BaseCommand
 from django.db import connections
 from django.db.migrations.executor import MigrationExecutor
+from django.db.utils import OperationalError
 from django.utils import timezone
 
 
@@ -179,14 +180,117 @@ class Command(BaseCommand):
             }
 
     def _check_migrations(self):
-        executor = MigrationExecutor(connections["default"])
-        targets = executor.loader.graph.leaf_nodes()
-        plan = executor.migration_plan(targets)
+        info = {}
+        alias = "default"
 
-        if plan:
-            raise RuntimeError(f"{len(plan)} unapplied migrations")
+        # Basic context
+        db_settings = settings.DATABASES[alias]
+        info["engine"] = db_settings.get("ENGINE")
+        info["name"] = db_settings.get("NAME")
+        info["cwd"] = os.getcwd()
 
-        return {"pending": 0}
+        # File-level checks for SQLite (helpful even on Ubuntu)
+        name = info["name"]
+        if isinstance(name, str) and name.startswith("/"):
+            info["exists"] = os.path.exists(name)
+            if info["exists"]:
+                st = os.stat(name)
+                info["size_bytes"] = st.st_size
+                info["mode"] = oct(st.st_mode)
+                info["uid"] = st.st_uid
+                info["gid"] = st.st_gid
+
+        def _sqlite_pragmas(cursor):
+            # Safe even if not sqlite; will just fail and we’ll ignore
+            out = {}
+            for q, k in [
+                ("PRAGMA journal_mode;", "journal_mode"),
+                ("PRAGMA locking_mode;", "locking_mode"),
+                ("PRAGMA busy_timeout;", "busy_timeout"),
+            ]:
+                try:
+                    cursor.execute(q)
+                    out[k] = cursor.fetchone()
+                except Exception:
+                    pass
+            return out
+
+        last_err = None
+
+        # Retry because cron can collide with other sqlite users briefly
+        for attempt in range(1, 4):
+            try:
+                conn = connections[alias]
+
+                # Force a fresh connection attempt (important!)
+                conn.close()
+                conn.connect()
+
+                with conn.cursor() as cursor:
+                    # 1) Prove we can query
+                    cursor.execute("SELECT 1;")
+                    info["ping"] = cursor.fetchone()[0]
+
+                    # 2) If sqlite, capture pragmas
+                    info["pragmas"] = _sqlite_pragmas(cursor)
+
+                    # 3) Check if django_migrations table exists
+                    vendor = getattr(conn, "vendor", "")
+                    info["vendor"] = vendor
+
+                    if vendor == "sqlite":
+                        cursor.execute(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='django_migrations';"
+                        )
+                        info["django_migrations_table"] = bool(cursor.fetchone())
+                    else:
+                        # Generic check for other DBs
+                        cursor.execute(
+                            "SELECT 1 FROM information_schema.tables WHERE table_name = 'django_migrations' LIMIT 1;"
+                        )
+                        info["django_migrations_table"] = True
+
+                    # If table missing, this is a schema/init problem (not “unapplied migrations”)
+                    if not info.get("django_migrations_table", False):
+                        raise RuntimeError(
+                            f"django_migrations table missing (DB reachable). db_name={info['name']}"
+                        )
+
+                # 4) Now run the real migration plan logic
+                executor = MigrationExecutor(conn)
+                targets = executor.loader.graph.leaf_nodes()
+                plan = executor.migration_plan(targets)
+
+                if plan:
+                    # Include first few migration IDs to make it actionable
+                    sample = [f"{m.app_label}.{m.name}" for m, _ in plan[:10]]
+                    raise RuntimeError(
+                        f"{len(plan)} unapplied migrations; first={sample}"
+                    )
+
+                info["migrations_ok"] = True
+                info["attempts"] = attempt
+                return info
+
+            except OperationalError as e:
+                last_err = e
+                info["attempts"] = attempt
+                info["error_type"] = "OperationalError"
+                info["error"] = str(e)
+                info["trace"] = traceback.format_exc(limit=2)
+                time.sleep(1)
+
+            except Exception as e:
+                # Non-OperationalError issues: schema missing, unapplied migrations, etc.
+                last_err = e
+                info["attempts"] = attempt
+                info["error_type"] = type(e).__name__
+                info["error"] = str(e)
+                info["trace"] = traceback.format_exc(limit=2)
+                break
+
+        # If we got here, fail with detail
+        raise RuntimeError(f"migrations check failed: {info}")
 
     def _check_cache(self):
         cache = caches["default"]

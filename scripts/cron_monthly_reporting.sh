@@ -17,19 +17,64 @@ APP_ROOT="/app"
 cd "$APP_ROOT"
 export PYTHONPATH="$APP_ROOT"
 
-# --- required env ---
+# ============================================================
+# Required core env
+# ============================================================
 : "${DATABASE_URL:?missing DATABASE_URL}"
 : "${DJANGO_SETTINGS_MODULE:=core.settings}"
 export DJANGO_SETTINGS_MODULE
 
+# ============================================================
+# SES / Email config
+# ============================================================
+
+# feature flags → defaults allowed
+USE_SES_EMAIL="${USE_SES_EMAIL:-true}"
+AWS_SES_USE_V2="${AWS_SES_USE_V2:-true}"
+DEFAULT_FROM_EMAIL="${DEFAULT_FROM_EMAIL:-noreply@example.com}"
+AWS_SES_REGION_NAME="${AWS_SES_REGION_NAME:-us-east-1}"
+
+# credentials → required
+: "${AWS_SES_ACCESS_KEY_ID:?missing AWS_SES_ACCESS_KEY_ID}"
+: "${AWS_SES_SECRET_ACCESS_KEY:?missing AWS_SES_SECRET_ACCESS_KEY}"
+
+# ============================================================
+# OpenAI config
+# ============================================================
+
+: "${OPENAI_API_KEY:?missing OPENAI_API_KEY}"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.2}"
+
+# ============================================================
+# Job parameters
+# ============================================================
+
 BENCH="${MONTHLY_BENCHMARK_SYMBOL:-SPY}"
 SUBJECT_PREFIX="${MONTHLY_SUBJECT_PREFIX:-[Monthly Report] }"
+
+# ============================================================
+# Logging (safe only — no secrets)
+# ============================================================
 
 echo "[cron][monthly] DATABASE_URL=${DATABASE_URL}"
 echo "[cron][monthly] benchmark=${BENCH}"
 echo "[cron][monthly] subject_prefix=${SUBJECT_PREFIX}"
 
-# --- run under lock (non-blocking, as your cron uses -n) ---
+echo "[cron][monthly] USE_SES_EMAIL=${USE_SES_EMAIL}"
+echo "[cron][monthly] AWS_SES_USE_V2=${AWS_SES_USE_V2}"
+echo "[cron][monthly] DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}"
+echo "[cron][monthly] AWS_SES_REGION_NAME=${AWS_SES_REGION_NAME}"
+
+echo "[cron][monthly] AWS_SES_ACCESS_KEY_ID=set"
+echo "[cron][monthly] AWS_SES_SECRET_ACCESS_KEY=set"
+
+echo "[cron][monthly] OPENAI_MODEL=${OPENAI_MODEL}"
+echo "[cron][monthly] OPENAI_API_KEY=set"
+
+# ============================================================
+# Run under lock (non-blocking, matches cron -n)
+# ============================================================
+
 exec flock -n /tmp/operations_db.lock \
   /app/scripts/manage_wrapper.sh run_monthly_reporting_workflow \
     --async \

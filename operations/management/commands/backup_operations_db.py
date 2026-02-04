@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from django.core.management.base import BaseCommand, CommandError
-from operations.backups.services import backup_sqlite_db_to_spaces  # update path
+from operations.services.backups import backup_sqlite_db_to_spaces  # update path
 from operations.task import backup_operations_db_to_spaces_task  # update path
 
 

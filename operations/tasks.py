@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from celery import shared_task
 from django.db import transaction
-from operations.backups.services import backup_sqlite_db_to_spaces
 from operations.models import BackupRun
+from operations.services.backups import backup_sqlite_db_to_spaces
 
 
 @shared_task(bind=True)

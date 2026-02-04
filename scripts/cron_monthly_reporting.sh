@@ -51,7 +51,7 @@ OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.2}"
 
 BENCH="${MONTHLY_BENCHMARK_SYMBOL:-SPY}"
 SUBJECT_PREFIX="${MONTHLY_SUBJECT_PREFIX:-[Monthly Report] }"
-
+FUND_ID="${FUND_ID:-1}"
 # ============================================================
 # Logging (safe only — no secrets)
 # ============================================================
@@ -70,7 +70,7 @@ echo "[cron][monthly] AWS_SES_SECRET_ACCESS_KEY=set"
 
 echo "[cron][monthly] OPENAI_MODEL=${OPENAI_MODEL}"
 echo "[cron][monthly] OPENAI_API_KEY=set"
-
+echo "[cron][alpaca-sync] FUND_ID=${FUND_ID}"
 # ============================================================
 # Run under lock (non-blocking, matches cron -n)
 # ============================================================
@@ -78,5 +78,6 @@ echo "[cron][monthly] OPENAI_API_KEY=set"
 exec flock -n /tmp/operations_db.lock \
   /app/scripts/manage_wrapper.sh run_monthly_reporting_workflow \
     --async \
-    --benchmark-symbol="$BENCH" \
+    --benchmark="$BENCH" \
+    --fund-id="$FUND_ID" \
     --subject-prefix="$SUBJECT_PREFIX"

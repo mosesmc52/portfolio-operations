@@ -103,6 +103,10 @@ def _sum_mgmt_fees(*, fund: Fund, start: date, end: date) -> Decimal:
     ).aggregate(s=Coalesce(Sum("amount"), Decimal("0.00"))).get("s") or Decimal("0.00")
 
 
+def _get_earliest_nav_on_or_after(*, fund: Fund, d: date):
+    return NAVSnapshot.objects.filter(fund=fund, date__gte=d).order_by("date").first()
+
+
 # ---------- result ----------
 
 
@@ -171,11 +175,17 @@ class MonthlyReportingService:
         period_start, period_end = _month_bounds(year, month)
 
         nav_start_obj = _get_latest_nav_on_or_before(fund=fund, d=period_start)
+        if not nav_start_obj:
+            # fund likely started mid-month; use first NAV on/after period_start
+            nav_start_obj = _get_earliest_nav_on_or_after(fund=fund, d=period_start)
+
         nav_end_obj = _get_latest_nav_on_or_before(fund=fund, d=period_end)
+
         if not nav_start_obj or not nav_end_obj:
             raise ValueError(
                 f"Missing NAVSnapshot boundaries for fund={fund.strategy_code}. "
-                f"Need NAV on/before {period_start} and {period_end}."
+                f"Need NAV near {period_start}..{period_end}. "
+                f"(start={getattr(nav_start_obj,'date',None)}, end={getattr(nav_end_obj,'date',None)})"
             )
 
         nav_start = Decimal(nav_start_obj.nav_per_unit)

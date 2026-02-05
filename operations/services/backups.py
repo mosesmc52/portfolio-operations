@@ -117,7 +117,10 @@ def backup_sqlite_db_to_spaces(
         raise ValueError("max_days must be >= 1")
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"DB not found at {db_path}")
-
+    print(f"key:{settings.SPACES_KEY}")
+    print(f"secret: {settings.SPACES_SECRET}")
+    print(f"buket: {settings.SPACES_BUCKET}")
+    print(f"endpoint: {settings.SPACES_ENDPOINT}")
     spaces = SpacesClient(
         key=settings.SPACES_KEY,
         secret=settings.SPACES_SECRET,

@@ -195,6 +195,12 @@ class Common(Configuration):
     AWS_LOCATION = values.Value("static", environ_prefix=None)
     AWS_S3_SIGNATURE_VERSION = "s3v4"
 
+    SPACES_KEY = values.Value("", environ_prefix=None)
+    SPACES_SECRET = values.Value("", environ_prefix=None)
+    SPACES_BUCKET = values.Value("", environ_prefix=None)
+    SPACES_REGION = values.Value("", environ_prefix=None)
+    SPACES_ENDPOINT = values.Value("", environ_prefix=None)
+
     @property
     def STORAGES(self):
         if self.USE_S3_STORAGE:

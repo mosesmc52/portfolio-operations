@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.conf import settings
 from django.db import transaction
 from operations.models import BackupRun
 from services.spaces import SpacesClient  # update to your actual import path
@@ -117,7 +118,13 @@ def backup_sqlite_db_to_spaces(
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"DB not found at {db_path}")
 
-    spaces = SpacesClient()
+    spaces = SpacesClient(
+        key=settings.SPACES_KEY,
+        secret=settings.SPACES_SECRET,
+        bucket=settings.SPACES_SECRET,
+        region=settings.SPACES_REGION,
+        endpoint=settings.SPACES_ENDPOINT,
+    )
     now = _utc_now()
 
     key = _default_key(prefix=prefix, filename=filename, now=now)

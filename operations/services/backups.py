@@ -121,7 +121,7 @@ def backup_sqlite_db_to_spaces(
     spaces = SpacesClient(
         key=settings.SPACES_KEY,
         secret=settings.SPACES_SECRET,
-        bucket=settings.SPACES_SECRET,
+        bucket=settings.SPACES_BUCKET,
         region=settings.SPACES_REGION,
         endpoint=settings.SPACES_ENDPOINT,
     )

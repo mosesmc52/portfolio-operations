@@ -28,8 +28,9 @@ class SpacesClient:
         self.region = region or os.getenv("SPACES_REGION", "nyc3")
         self.endpoint = endpoint or os.getenv(
             "SPACES_ENDPOINT",
-            f"https://{self.bucket}.{self.region}.digitaloceanspaces.com",
+            f"https://{self.region}.digitaloceanspaces.com",
         )
+
         self.cdn_base = cdn_base or os.getenv("SPACES_CDN_BASE")
 
         if not self.key or not self.secret or not self.bucket:
@@ -63,15 +64,10 @@ class SpacesClient:
         return f"rocks/{uuid.uuid4().hex}{ext}"
 
     def public_url(self, key: str) -> str:
-        """
-        Build a public URL for an uploaded object.
-        Prefer CDN domain when available.
-        """
         if self.cdn_base:
             return urljoin(self.cdn_base.rstrip("/") + "/", key.lstrip("/"))
 
-        # endpoint already points at https://{bucket}.{region}.digitaloceanspaces.com
-        return f"{self.endpoint.rstrip('/')}/{key.lstrip('/')}"
+        return f"https://{self.bucket}.{self.region}.digitaloceanspaces.com/{key.lstrip('/')}"
 
     # --------------------------- #
     # Public API

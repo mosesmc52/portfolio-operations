@@ -1,10 +1,12 @@
 # apps/trading/sync.py
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from funds.models import Fund
 from services.brokers.alpaca_orders_service import AlpacaOrdersService
@@ -52,6 +54,7 @@ def sync_alpaca_filled_orders_last_days(
             price = Decimal(str(f.filled_avg_price))
             notional = (qty * price).quantize(Decimal("0.01"))
 
+            safe_raw = json.loads(json.dumps(f.raw, cls=DjangoJSONEncoder))
             obj, was_created = TradeFill.objects.update_or_create(
                 external_fill_id=f.external_fill_id,
                 defaults={
@@ -63,7 +66,7 @@ def sync_alpaca_filled_orders_last_days(
                     "price": price,
                     "notional": notional,
                     "filled_at": f.filled_at,
-                    "raw": f.raw,
+                    "raw": safe_raw,
                 },
             )
 

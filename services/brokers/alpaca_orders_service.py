@@ -67,12 +67,15 @@ class AlpacaOrdersService:
             raw = o.model_dump() if hasattr(o, "model_dump") else {}
 
             # Filter to FILLED orders specifically
+
             status = raw.get("status") or getattr(o, "status", None)
-            if str(status) != "filled":
+
+            if status != "filled":
                 continue
 
             filled_at = raw.get("filled_at") or getattr(o, "filled_at", None)
             filled_at_dt = self._parse_dt(filled_at)
+
             if not filled_at_dt:
                 continue
 
@@ -92,6 +95,7 @@ class AlpacaOrdersService:
                 continue
 
             external_order_id = raw.get("id") or getattr(o, "id", None)
+
             if not external_order_id:
                 continue
 

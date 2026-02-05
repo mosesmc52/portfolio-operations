@@ -53,6 +53,7 @@ class Common(Configuration):
         "django.contrib.staticfiles",
         "django.contrib.humanize",
         "admincolors",
+        "core.apps.CoreConfig",
         "funds",
         "trading",
         "clients",

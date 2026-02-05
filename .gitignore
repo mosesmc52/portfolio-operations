@@ -210,3 +210,4 @@ __marimo__/
 
 media/
 supervisord.pid
+data/

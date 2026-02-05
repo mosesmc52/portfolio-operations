@@ -77,7 +77,6 @@ echo "[cron][alpaca-sync] FUND_ID=${FUND_ID}"
 
 exec flock -n /tmp/operations_db.lock \
   /app/scripts/manage_wrapper.sh run_monthly_reporting_workflow \
-    --async \
     --benchmark="$BENCH" \
     --fund-id="$FUND_ID" \
     --subject-prefix="$SUBJECT_PREFIX"

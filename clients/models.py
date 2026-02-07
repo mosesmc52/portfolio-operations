@@ -25,7 +25,7 @@ class Client(models.Model):
         max_length=20, choices=CLIENT_TYPE_CHOICES, default=INDIVIDUAL
     )
 
-    email = models.EmailField(blank=True, null=True)
+    email = models.EmailField(verbose_name="email(s)", blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PROSPECT)

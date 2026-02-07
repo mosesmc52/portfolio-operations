@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 from accounts.models import ClientCapitalAccount
 from celery import shared_task
 from clients.models import Client
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage
+from django.core.validators import validate_email
 from django.db import transaction
-from django.db.models import Q, Sum
-from django.utils import timezone
+from django.db.models import Sum
 from performance.models import MonthlySnapshot
 from reporting.models import MonthlyReportArtifact
 from reporting.services.monthly_reporting_service import MonthlyReportingService
@@ -81,27 +82,61 @@ def _get_latest_snapshot_with_report(*, fund_id: int) -> MonthlySnapshot | None:
     )
 
 
-def _get_recipients_for_fund(*, fund_id: int) -> List[Client]:
+def _split_emails(raw: str) -> list[str]:
     """
-    Clients who have >0 units in this fund and have an email.
-    You can tighten rules here (e.g., status=ACTIVE only).
+    Split on commas/semicolons, trim whitespace, validate, de-dupe.
+    """
+    if not raw:
+        return []
+
+    # support both comma and semicolon separators
+    parts = [p.strip() for p in raw.replace(";", ",").split(",")]
+    out: list[str] = []
+    seen: set[str] = set()
+
+    for p in parts:
+        if not p:
+            continue
+        # Optional: strip common "Name <email@x.com>" formatting if it appears
+        if "<" in p and ">" in p:
+            p = p[p.find("<") + 1 : p.find(">")].strip()
+
+        try:
+            validate_email(p)
+        except ValidationError:
+            continue  # or log/raise depending on your needs
+
+        key = p.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+
+    return out
+
+
+def _get_recipients_for_fund(*, fund_id: int) -> List[Tuple["Client", str]]:
+    """
+    Clients who have >0 units in this fund and have at least one valid email.
+    Returns a list of (client, email) pairs, splitting comma/semicolon-delimited fields.
     """
     qs = (
-        Client.objects.filter(
-            email__isnull=False,
-        )
+        Client.objects.filter(email__isnull=False)
         .exclude(email__exact="")
         .filter(
             clientcapitalaccount__fund_id=fund_id,
             clientcapitalaccount__units__gt=0,
         )
         .distinct()
+        .only("id", "email")  # keep it light
     )
 
-    # Optional: restrict to ACTIVE only (recommended)
-    # qs = qs.filter(status=Client.ACTIVE)
+    recipients: list[tuple[Client, str]] = []
+    for client in qs:
+        for email in _split_emails(client.email):
+            recipients.append((client, email))
 
-    return list(qs)
+    return recipients
 
 
 def _subject_for_snapshot(snap: MonthlySnapshot) -> str:

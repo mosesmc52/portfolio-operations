@@ -115,10 +115,15 @@ def _split_emails(raw: str) -> list[str]:
     return out
 
 
-def _get_recipients_for_fund(*, fund_id: int) -> List[Tuple["Client", str]]:
+def _get_recipients_for_fund(
+    *,
+    fund_id: int,
+    include_only_active_clients: bool = True,
+) -> list[str]:
     """
     Clients who have >0 units in this fund and have at least one valid email.
-    Returns a list of (client, email) pairs, splitting comma/semicolon-delimited fields.
+    Returns a de-duplicated list of valid email addresses, splitting
+    comma/semicolon-delimited fields.
     """
     qs = (
         Client.objects.filter(email__isnull=False)
@@ -131,10 +136,18 @@ def _get_recipients_for_fund(*, fund_id: int) -> List[Tuple["Client", str]]:
         .only("id", "email")  # keep it light
     )
 
-    recipients: list[tuple[Client, str]] = []
+    if include_only_active_clients:
+        qs = qs.filter(status=getattr(Client, "ACTIVE", "active"))
+
+    recipients: list[str] = []
+    seen: set[str] = set()
     for client in qs:
         for email in _split_emails(client.email):
-            recipients.append((client, email))
+            key = email.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            recipients.append(email)
 
     return recipients
 
@@ -237,14 +250,10 @@ def email_latest_monthly_report_to_clients_task(
         ).__dict__
 
     # 2) Determine recipients
-    recipients = _get_recipients_for_fund(fund_id=fund_id)
-
-    if include_only_active_clients:
-        recipients = [
-            c
-            for c in recipients
-            if getattr(c, "status", None) == getattr(Client, "ACTIVE", "active")
-        ]
+    recipients = _get_recipients_for_fund(
+        fund_id=fund_id,
+        include_only_active_clients=include_only_active_clients,
+    )
 
     # If no recipients, return cleanly
     if not recipients:
@@ -288,8 +297,8 @@ def email_latest_monthly_report_to_clients_task(
     sent = 0
     skipped_no_email = 0
 
-    for client in recipients:
-        email = (getattr(client, "email", None) or "").strip()
+    for email in recipients:
+        email = (email or "").strip()
         if not email:
             skipped_no_email += 1
             continue

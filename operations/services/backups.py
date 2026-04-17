@@ -69,6 +69,18 @@ def _list_objects(client, bucket: str, prefix: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _normalize_prefix(prefix: str) -> str:
+    return (prefix or "").strip("/")
+
+
+def _is_managed_backup_key(key: str, normalized_prefix: str) -> bool:
+    if not normalized_prefix:
+        return True
+    return key.startswith(f"{normalized_prefix}/") or key.startswith(
+        f"{normalized_prefix}-"
+    )
+
+
 def _delete_older_than(
     spaces: SpacesClient,
     prefix: str,
@@ -76,12 +88,15 @@ def _delete_older_than(
     dry_run: bool,
 ) -> Tuple[int, int]:
     cutoff = _utc_now() - timedelta(days=max_days)
-    objs = _list_objects(spaces.client, spaces.bucket, prefix)
+    normalized_prefix = _normalize_prefix(prefix)
+    objs = _list_objects(spaces.client, spaces.bucket, normalized_prefix)
 
     deleted = 0
     kept = 0
     for obj in objs:
         key = obj["Key"]
+        if not _is_managed_backup_key(key, normalized_prefix):
+            continue
         last_modified = obj.get("LastModified")  # tz-aware datetime
         if last_modified is None:
             kept += 1
@@ -155,7 +170,7 @@ def backup_sqlite_db_to_spaces(
     # Retention cleanup
     deleted_old, kept = _delete_older_than(
         spaces,
-        prefix=prefix.strip("/") + "/",
+        prefix=prefix,
         max_days=max_days,
         dry_run=dry_run,
     )

@@ -12,9 +12,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--db-path", type=str, default="/data/operations.db")
-        parser.add_argument("--prefix", type=str, default="backups/operations")
+        parser.add_argument(
+            "--prefix", type=str, default="quant-portfolio/backups/operations"
+        )
         parser.add_argument("--filename", type=str, default="operations")
-        parser.add_argument("--max-days", type=int, default=30)
+        parser.add_argument("--max-days", type=int, default=7)
 
         parser.add_argument(
             "--gzip", dest="gzip_enabled", action="store_true", default=True

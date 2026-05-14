@@ -273,12 +273,12 @@ NAV:
 - End NAV ({nav_end_obj.date}): {nav_end}
 
 Performance:
-- Fund return: {fund_return:.4%}
+- Fund return: {fund_return:.2%}
 - Max drawdown (month, from NAV snapshots): {str(max_dd) if max_dd is not None else "N/A"}
 - Management fee accrued (month): ${mgmt_fee_total}
 
 Benchmark:
-spy_ret_str = f"{spy_return:.4%}" if spy_return is not None else "N/A"
+spy_ret_str = f"{spy_return:.2%}" if spy_return is not None else "N/A"
 
 Strategy operations:
 - Weekly rebalance
@@ -425,7 +425,7 @@ Please output:
         <div class="kpi"><b>Max drawdown</b> {dd_text}</div>
         <div class="kpi"><b>NAV start ({nav_start_date})</b> {nav_start:.2f}</div>
         <div class="kpi"><b>NAV end ({nav_end_date})</b> {nav_end:.2f}</div>
-        <div class="kpi"><b>Mgmt fee accrued</b> ${mgmt_fee_total}</div>
+        <div class="kpi"><b>Mgmt fee accrued</b> ${mgmt_fee_total:.2f}</div>
       </div>
 
       <div class="box">
@@ -505,9 +505,9 @@ Please output:
             "Max drawdown (month)",
             f"{max_drawdown:.2%}" if max_drawdown is not None else "N/A",
         )
-        line("NAV start", f"{nav_start} ({nav_start_date})")
-        line("NAV end", f"{nav_end} ({nav_end_date})")
-        line("Mgmt fee accrued (month)", f"${mgmt_fee_total}")
+        line("NAV start", f"{nav_start:.2f} ({nav_start_date})")
+        line("NAV end", f"{nav_end:.2f} ({nav_end_date})")
+        line("Mgmt fee accrued (month)", f"${mgmt_fee_total:.2f}")
         y -= 10
 
         # Chart

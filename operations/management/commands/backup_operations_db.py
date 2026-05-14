@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
+from operations.models import BackupRun
 from operations.services.backups import backup_sqlite_db_to_spaces  # update path
 from operations.tasks import backup_operations_db_to_spaces_task  # update path
 
@@ -51,6 +53,7 @@ class Command(BaseCommand):
         acl = opts["acl"]
         dry_run = bool(opts["dry_run"])
         run_async = bool(opts["run_async"])
+        run = None
 
         try:
             if run_async:
@@ -75,6 +78,20 @@ class Command(BaseCommand):
                     "dry_run": dry_run,
                 }
             else:
+                with transaction.atomic():
+                    run = BackupRun.objects.create(
+                        status=BackupRun.Status.STARTED,
+                        target="operations_db",
+                        db_path=db_path,
+                        prefix=prefix,
+                        filename=filename,
+                        max_days=max_days,
+                        gzip_enabled=gzip_enabled,
+                        acl=acl,
+                        dry_run=dry_run,
+                        task_id="",
+                    )
+
                 res = backup_sqlite_db_to_spaces(
                     db_path=db_path,
                     prefix=prefix,
@@ -83,10 +100,12 @@ class Command(BaseCommand):
                     gzip_enabled=gzip_enabled,
                     acl=acl,
                     dry_run=dry_run,
+                    backup_run=run,
                 )
                 payload = {
                     "queued": False,
                     "ok": res.ok,
+                    "backup_run_id": run.id,
                     "db_path": res.db_path,
                     "bucket": res.bucket,
                     "endpoint": res.endpoint,
@@ -101,6 +120,8 @@ class Command(BaseCommand):
                 }
 
         except Exception as e:
+            if run is not None:
+                run.mark_failed(error=str(e))
             raise CommandError(str(e))
 
         if opts["json"]:

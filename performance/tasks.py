@@ -3,13 +3,10 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
-from accounts.models import ClientCapitalAccount
 from celery import shared_task
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Sum
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 from performance.models import MonthlySnapshot, NAVSnapshot
 from performance.services.nav import compute_and_save_navsnapshot
@@ -81,9 +78,9 @@ def generate_monthly_snapshot_task(
 
     fund_return = (nav_eom / nav_bom) - Decimal("1")
 
-    total_units = ClientCapitalAccount.objects.filter(fund_id=fund_id).aggregate(
-        s=Coalesce(Sum("units"), Decimal("0"))
-    ).get("s") or Decimal("0")
+    # Use the month-end NAV snapshot's recorded units to keep historical AUM stable.
+    # Summing current ClientCapitalAccount units can drift historical months.
+    total_units = Decimal(nav_eom_obj.total_units or 0)
     aum_eom = (nav_eom * total_units).quantize(Decimal("0.01"))
 
     # Benchmark return (optional)

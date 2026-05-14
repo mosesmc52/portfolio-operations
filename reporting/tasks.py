@@ -163,14 +163,14 @@ def _build_body_text(*, snap: MonthlySnapshot, artifact: MonthlyReportArtifact) 
         f"Period end: {snap.as_of_month:%Y-%m-%d}",
         "",
         "Summary:",
-        f"- Fund return: {snap.fund_return:.4%}",
+        f"- Fund return: {snap.fund_return:.2%}",
         (
-            f"- Benchmark ({snap.benchmark_symbol}) return: {snap.benchmark_return:.4%}"
+            f"- Benchmark ({snap.benchmark_symbol}) return: {snap.benchmark_return:.2%}"
             if snap.benchmark_return is not None
             else f"- Benchmark ({snap.benchmark_symbol}) return: N/A"
         ),
         (
-            f"- Excess return: {snap.excess_return:.4%}"
+            f"- Excess return: {snap.excess_return:.2%}"
             if snap.excess_return is not None
             else "- Excess return: N/A"
         ),

@@ -1,4 +1,26 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+from typing import Tuple
+
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
+from funds.models import Fund
+
+
+def _credential_fernet() -> Fernet:
+    raw_key = (getattr(settings, "ACCOUNT_CREDENTIALS_ENCRYPTION_KEY", "") or "").strip()
+    if not raw_key:
+        raise ImproperlyConfigured(
+            "ACCOUNT_CREDENTIALS_ENCRYPTION_KEY must be configured to read or write "
+            "account broker credentials."
+        )
+
+    derived_key = base64.urlsafe_b64encode(hashlib.sha256(raw_key.encode("utf-8")).digest())
+    return Fernet(derived_key)
 
 
 class ClientCapitalAccount(models.Model):
@@ -12,6 +34,81 @@ class ClientCapitalAccount(models.Model):
 
     class Meta:
         unique_together = [("client", "fund")]
+
+    def __str__(self) -> str:
+        return f"{self.client} / {self.fund}"
+
+
+class AccountBrokerCredential(models.Model):
+    account = models.OneToOneField(
+        "accounts.ClientCapitalAccount",
+        on_delete=models.CASCADE,
+        related_name="broker_credential",
+    )
+    broker = models.CharField(
+        max_length=16,
+        choices=Fund.CUSTODIAN_CHOICES,
+        default=Fund.CUSTODIAN_ALPACA,
+    )
+    alpaca_key_id_encrypted = models.TextField(blank=True, default="")
+    alpaca_secret_key_encrypted = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["broker", "is_active"]),
+        ]
+
+    def clean(self) -> None:
+        if self.broker != self.account.fund.custodian:
+            raise ValidationError(
+                {"broker": "Broker must match the associated account fund custodian."}
+            )
+
+    def set_alpaca_credentials(self, *, key_id: str, secret_key: str) -> None:
+        if self.broker != Fund.CUSTODIAN_ALPACA:
+            raise ValidationError("Alpaca credentials can only be stored for ALPACA broker rows.")
+
+        if not key_id or not secret_key:
+            raise ValidationError("Both Alpaca key ID and secret key are required.")
+
+        fernet = _credential_fernet()
+        self.alpaca_key_id_encrypted = fernet.encrypt(key_id.encode("utf-8")).decode("ascii")
+        self.alpaca_secret_key_encrypted = fernet.encrypt(secret_key.encode("utf-8")).decode(
+            "ascii"
+        )
+
+    def get_alpaca_credentials(self) -> Tuple[str, str]:
+        if not self.alpaca_key_id_encrypted or not self.alpaca_secret_key_encrypted:
+            raise ValidationError("Encrypted Alpaca credentials are not set.")
+
+        fernet = _credential_fernet()
+        try:
+            key_id = fernet.decrypt(self.alpaca_key_id_encrypted.encode("ascii")).decode("utf-8")
+            secret_key = fernet.decrypt(self.alpaca_secret_key_encrypted.encode("ascii")).decode(
+                "utf-8"
+            )
+        except InvalidToken as exc:
+            raise ValidationError("Stored Alpaca credentials could not be decrypted.") from exc
+
+        return key_id, secret_key
+
+    @property
+    def masked_key_id(self) -> str:
+        if not self.alpaca_key_id_encrypted:
+            return ""
+        try:
+            key_id, _ = self.get_alpaca_credentials()
+        except (ValidationError, ImproperlyConfigured):
+            return "[unavailable]"
+        if len(key_id) <= 4:
+            return "*" * len(key_id)
+        return f"{key_id[:4]}{'*' * max(len(key_id) - 8, 4)}{key_id[-4:]}"
+
+    def __str__(self) -> str:
+        return f"{self.account} {self.get_broker_display()} credentials"
 
 
 class CapitalFlow(models.Model):

@@ -53,7 +53,9 @@ class Common(Configuration):
         "django.contrib.staticfiles",
         "django.contrib.humanize",
         "admincolors",
+        "rest_framework",
         "core.apps.CoreConfig",
+        "api.apps.ApiConfig",
         "funds",
         "trading",
         "clients",
@@ -269,6 +271,9 @@ class Common(Configuration):
     ALPACA_BASE_URL = values.Value(
         "https://paper-api.alpaca.markets", environ_prefix=None
     )
+    ACCOUNT_CREDENTIALS_ENCRYPTION_KEY = values.Value("", environ_prefix=None)
+    API_JWT_ACCESS_MINUTES = values.IntegerValue(60, environ_prefix=None)
+    API_JWT_REFRESH_DAYS = values.IntegerValue(7, environ_prefix=None)
 
     OPENAI_MODEL = values.Value("gpt-4o-mini", environ_prefix=None)
 
@@ -290,6 +295,25 @@ class Common(Configuration):
         """
         dsn = (self.SENTRY_URL or "").strip()
         return bool(self.SENTRY_ENABLED and dsn)
+
+    REST_FRAMEWORK = {
+        "DEFAULT_AUTHENTICATION_CLASSES": (
+            "rest_framework_simplejwt.authentication.JWTAuthentication",
+        ),
+        "DEFAULT_PERMISSION_CLASSES": (
+            "rest_framework.permissions.IsAuthenticated",
+        ),
+    }
+
+    @property
+    def SIMPLE_JWT(self):
+        return {
+            "ACCESS_TOKEN_LIFETIME": dt.timedelta(minutes=self.API_JWT_ACCESS_MINUTES),
+            "REFRESH_TOKEN_LIFETIME": dt.timedelta(days=self.API_JWT_REFRESH_DAYS),
+            "AUTH_HEADER_TYPES": ("Bearer",),
+            "USER_ID_FIELD": "id",
+            "USER_ID_CLAIM": "user_id",
+        }
 
 
 class Development(Common):

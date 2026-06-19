@@ -25,6 +25,9 @@ reportlab = "^4.4.7"
 django-ses = "4.5.0"
 sentry-sdk = {extras = ["django"], version = "^2.48.0"}
 gunicorn = "^23.0.0"
+cryptography = "^46.0.3"
+djangorestframework = "^3.16.1"
+djangorestframework-simplejwt = "^5.5.1"
 
 
 [build-system]

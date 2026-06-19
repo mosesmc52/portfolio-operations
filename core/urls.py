@@ -18,7 +18,7 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from django.utils.translation import gettext_lazy as _
 
 from .views import root_redirect
@@ -31,6 +31,7 @@ def trigger_error(request):
 urlpatterns = [
     path("", root_redirect),
     path("admin/", admin.site.urls),
+    path("api/", include("api.urls")),
     path("sentry-debug/", trigger_error),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

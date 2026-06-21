@@ -39,7 +39,7 @@ class AccountBrokerCredentialForm(forms.ModelForm):
 
     class Meta:
         model = AccountBrokerCredential
-        fields = ("account", "broker", "is_active")
+        fields = ("account", "broker", "environment", "is_active")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -120,11 +120,12 @@ class AccountBrokerCredentialAdmin(admin.ModelAdmin):
     list_display = (
         "account",
         "broker",
+        "environment",
         "masked_key_id_display",
         "is_active",
         "updated_at",
     )
-    list_filter = ("broker", "is_active")
+    list_filter = ("broker", "environment", "is_active")
     search_fields = (
         "account__client__full_name",
         "account__client__email",
@@ -135,6 +136,7 @@ class AccountBrokerCredentialAdmin(admin.ModelAdmin):
     fields = (
         "account",
         "broker",
+        "environment",
         "masked_key_id_display",
         "alpaca_key_id_input",
         "alpaca_secret_key_input",

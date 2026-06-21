@@ -30,6 +30,10 @@ class AccountBrokerCredentialTests(TestCase):
         credential.full_clean()
         credential.save()
 
+        self.assertEqual(
+            credential.environment,
+            AccountBrokerCredential.ENVIRONMENT_PAPER,
+        )
         self.assertNotEqual(credential.alpaca_key_id_encrypted, "AKIA123456")
         self.assertNotEqual(credential.alpaca_secret_key_encrypted, "secret-xyz")
         self.assertEqual(credential.get_alpaca_credentials(), ("AKIA123456", "secret-xyz"))

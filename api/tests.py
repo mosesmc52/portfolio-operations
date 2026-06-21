@@ -36,6 +36,7 @@ class ActiveCredentialApiTests(TestCase):
         active_credential = AccountBrokerCredential(
             account=account,
             broker=Fund.CUSTODIAN_ALPACA,
+            environment=AccountBrokerCredential.ENVIRONMENT_LIVE,
             is_active=True,
         )
         active_credential.set_alpaca_credentials(
@@ -66,6 +67,9 @@ class ActiveCredentialApiTests(TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["client_name"], "Client One")
         self.assertEqual(payload[0]["fund_strategy_code"], "ALPACA_FUND")
+        self.assertEqual(payload[0]["environment"], AccountBrokerCredential.ENVIRONMENT_LIVE)
+        self.assertEqual(payload[0]["key_id"], "AKIA123456")
+        self.assertEqual(payload[0]["secret_key"], "secret-xyz")
         self.assertTrue(payload[0]["masked_key_id"].startswith("AKIA"))
         self.assertNotIn("alpaca_secret_key_encrypted", payload[0])
 

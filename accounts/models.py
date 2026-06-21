@@ -40,6 +40,13 @@ class ClientCapitalAccount(models.Model):
 
 
 class AccountBrokerCredential(models.Model):
+    ENVIRONMENT_PAPER = "paper"
+    ENVIRONMENT_LIVE = "live"
+    ENVIRONMENT_CHOICES = [
+        (ENVIRONMENT_PAPER, "Paper"),
+        (ENVIRONMENT_LIVE, "Live"),
+    ]
+
     account = models.OneToOneField(
         "accounts.ClientCapitalAccount",
         on_delete=models.CASCADE,
@@ -49,6 +56,11 @@ class AccountBrokerCredential(models.Model):
         max_length=16,
         choices=Fund.CUSTODIAN_CHOICES,
         default=Fund.CUSTODIAN_ALPACA,
+    )
+    environment = models.CharField(
+        max_length=16,
+        choices=ENVIRONMENT_CHOICES,
+        default=ENVIRONMENT_PAPER,
     )
     alpaca_key_id_encrypted = models.TextField(blank=True, default="")
     alpaca_secret_key_encrypted = models.TextField(blank=True, default="")

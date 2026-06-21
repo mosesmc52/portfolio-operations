@@ -26,7 +26,7 @@ WORKDIR /app
 
 COPY poetry.lock pyproject.toml /app/
 
-RUN pip install --no-cache-dir poetry \
+RUN pip install --no-cache-dir poetry==1.8.2 \
  && poetry config virtualenvs.create false \
  && poetry install --no-root --no-interaction --no-ansi
 

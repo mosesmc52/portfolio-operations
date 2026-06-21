@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from accounts.models import CapitalFlow, ClientCapitalAccount
+from accounts.models import AccountBrokerCredential, CapitalFlow, ClientCapitalAccount
 from accounts.services.capital_flows import apply_capital_flow
 from accounts.utils.external_refs import generate_external_ref
+from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -20,6 +21,50 @@ class ClientCapitalAccountInline(admin.TabularInline):
     extra = 0
     fields = ("fund", "units", "nav_per_unit", "last_valuation_date")
     ordering = ("fund",)
+
+
+class AccountBrokerCredentialForm(forms.ModelForm):
+    alpaca_key_id_input = forms.CharField(
+        label="Alpaca key ID",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="Leave blank to keep the currently stored key ID.",
+    )
+    alpaca_secret_key_input = forms.CharField(
+        label="Alpaca secret key",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="Leave blank to keep the currently stored secret key.",
+    )
+
+    class Meta:
+        model = AccountBrokerCredential
+        fields = ("account", "broker", "environment", "is_active")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        key_id = cleaned_data.get("alpaca_key_id_input")
+        secret_key = cleaned_data.get("alpaca_secret_key_input")
+
+        if self.instance.pk is None and (not key_id or not secret_key):
+            raise ValidationError("Both Alpaca key ID and Alpaca secret key are required.")
+
+        if bool(key_id) != bool(secret_key):
+            raise ValidationError(
+                "Provide both Alpaca key ID and Alpaca secret key together when rotating credentials."
+            )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        key_id = self.cleaned_data.get("alpaca_key_id_input")
+        secret_key = self.cleaned_data.get("alpaca_secret_key_input")
+        if key_id and secret_key:
+            instance.set_alpaca_credentials(key_id=key_id, secret_key=secret_key)
+        if commit:
+            instance.save()
+        return instance
 
 
 class CapitalFlowInline(admin.TabularInline):
@@ -67,6 +112,45 @@ class ClientCapitalAccountAdmin(admin.ModelAdmin):
         return float(obj.units) * float(obj.nav_per_unit)
 
     equity_estimate.short_description = "Equity (est.)"
+
+
+@admin.register(AccountBrokerCredential)
+class AccountBrokerCredentialAdmin(admin.ModelAdmin):
+    form = AccountBrokerCredentialForm
+    list_display = (
+        "account",
+        "broker",
+        "environment",
+        "masked_key_id_display",
+        "is_active",
+        "updated_at",
+    )
+    list_filter = ("broker", "environment", "is_active")
+    search_fields = (
+        "account__client__full_name",
+        "account__client__email",
+        "account__fund__strategy_code",
+        "account__fund__name",
+    )
+    readonly_fields = ("masked_key_id_display", "created_at", "updated_at")
+    fields = (
+        "account",
+        "broker",
+        "environment",
+        "masked_key_id_display",
+        "alpaca_key_id_input",
+        "alpaca_secret_key_input",
+        "is_active",
+        "created_at",
+        "updated_at",
+    )
+
+    def masked_key_id_display(self, obj):
+        if not obj.pk:
+            return ""
+        return obj.masked_key_id
+
+    masked_key_id_display.short_description = "Stored key ID"
 
 
 @admin.register(CapitalFlow)

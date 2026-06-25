@@ -1,0 +1,4 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+15 2 * * * root /bin/bash /app/scripts/cron_sync_alpaca_account_portfolio_history.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

@@ -11,6 +11,7 @@ class TradeFillAdmin(admin.ModelAdmin):
     list_display = (
         "filled_at_local",
         "fund",
+        "account",
         "fund_strategy",
         "symbol",
         "side",
@@ -20,14 +21,13 @@ class TradeFillAdmin(admin.ModelAdmin):
         "broker",
         "external_fill_id",
     )
-    list_filter = ("broker", "side", "symbol", "fund")
+    list_filter = ("broker", "side", "symbol", "fund", "account")
     search_fields = (
         "external_fill_id",
-        "external_order_id",
         "symbol",
+        "account__client__full_name",
         "fund__strategy_code",
         "fund__name",
-        "fund__custodian_account_masked",
     )
     date_hierarchy = "filled_at"
     readonly_fields = ("created_at",)

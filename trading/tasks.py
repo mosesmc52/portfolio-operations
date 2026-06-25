@@ -16,6 +16,7 @@ def sync_alpaca_filled_orders_last_days_task(
         "fund_id": res.fund_id,
         "strategy_code": res.fund_strategy_code,
         "days": res.days,
+        "accounts_processed": res.accounts_processed,
         "fetched": res.fetched,
         "created": res.created,
         "updated": res.updated,

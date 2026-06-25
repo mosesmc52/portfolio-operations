@@ -91,6 +91,7 @@ class Command(BaseCommand):
             "strategy_code": res.fund_strategy_code,
             "days": res.days,
             "limit": limit,
+            "accounts_processed": res.accounts_processed,
             "fetched": res.fetched,
             "created": res.created,
             "updated": res.updated,

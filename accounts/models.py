@@ -107,6 +107,11 @@ class AccountBrokerCredential(models.Model):
 
         return key_id, secret_key
 
+    def get_alpaca_base_url(self) -> str:
+        if self.environment == self.ENVIRONMENT_LIVE:
+            return "https://api.alpaca.markets"
+        return "https://paper-api.alpaca.markets"
+
     @property
     def masked_key_id(self) -> str:
         if not self.alpaca_key_id_encrypted:
@@ -121,6 +126,51 @@ class AccountBrokerCredential(models.Model):
 
     def __str__(self) -> str:
         return f"{self.account} {self.get_broker_display()} credentials"
+
+
+class AccountPortfolioHistory(models.Model):
+    account = models.ForeignKey(
+        "accounts.ClientCapitalAccount",
+        on_delete=models.CASCADE,
+        related_name="portfolio_history",
+    )
+    broker = models.CharField(max_length=16, choices=Fund.CUSTODIAN_CHOICES)
+    as_of_date = models.DateField()
+    as_of_datetime = models.DateTimeField()
+    timeframe = models.CharField(max_length=16, default="1D")
+    equity = models.DecimalField(max_digits=20, decimal_places=2)
+    profit_loss = models.DecimalField(max_digits=20, decimal_places=2)
+    profit_loss_pct = models.DecimalField(
+        max_digits=12,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    base_value = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    raw = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "as_of_datetime", "timeframe"],
+                name="uq_acct_portfolio_history_account_dt_timeframe",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["account", "as_of_date"]),
+            models.Index(fields=["account", "timeframe"]),
+        ]
+        ordering = ["account_id", "-as_of_datetime"]
+
+    def __str__(self) -> str:
+        return f"{self.account} {self.as_of_date} {self.timeframe}"
 
 
 class CapitalFlow(models.Model):

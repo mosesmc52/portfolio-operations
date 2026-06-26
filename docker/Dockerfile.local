@@ -40,7 +40,9 @@ RUN pip install --no-cache-dir poetry==1.8.2 \
 
 # Wrapper script (must exist in image so cron can call it)
 COPY scripts/manage_wrapper.sh /app/scripts/manage_wrapper.sh
+COPY scripts/cron_compute_nav_daily.sh /app/scripts/cron_compute_nav_daily.sh
 RUN chmod +x /app/scripts/manage_wrapper.sh
+RUN chmod +x /app/scripts/cron_compute_nav_daily.sh
 
 # Cron + Supervisor configuration
 COPY docker/cron /etc/cron.d

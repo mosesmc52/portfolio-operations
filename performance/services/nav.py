@@ -4,6 +4,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from accounts.models import AccountBrokerCredential, ClientCapitalAccount
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -64,13 +65,31 @@ def compute_and_save_navsnapshot(
     total_equity = Decimal("0")
     total_cash = Decimal("0")
     for credential in credentials:
-        key_id, secret_key = credential.get_alpaca_credentials()
-        svc = AlpacaValuationService(
-            key_id=key_id,
-            secret_key=secret_key,
-            base_url=credential.get_alpaca_base_url(),
-        )
-        val = svc.get_account_valuation()
+        try:
+            key_id, secret_key = credential.get_alpaca_credentials()
+            svc = AlpacaValuationService(
+                key_id=key_id,
+                secret_key=secret_key,
+                base_url=credential.get_alpaca_base_url(),
+            )
+            val = svc.get_account_valuation()
+        except Exception as exc:
+            try:
+                masked_key = credential.masked_key_id
+            except (ValidationError, ImproperlyConfigured):
+                masked_key = "[unavailable]"
+
+            client_name = getattr(credential.account.client, "full_name", "unknown")
+            raise ValueError(
+                "Failed to fetch Alpaca valuation for "
+                f"account_id={credential.account_id}, "
+                f"client={client_name}, "
+                f"fund={fund.strategy_code}, "
+                f"environment={credential.environment}, "
+                f"masked_key_id={masked_key}. "
+                f"Upstream error: {exc}"
+            ) from exc
+
         total_equity += val.equity
         total_cash += val.cash
 

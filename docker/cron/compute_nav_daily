@@ -1,0 +1,4 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+45 1 * * * root /bin/bash /app/scripts/cron_compute_nav_daily.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

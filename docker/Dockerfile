@@ -44,7 +44,7 @@ COPY . /app
 COPY scripts/manage_wrapper.sh /app/scripts/manage_wrapper.sh
 COPY scripts/cron_healthcheck.sh /app/scripts/cron_healthcheck.sh
 COPY scripts/cron_backup.sh /app/scripts/cron_backup.sh
-COPY scripts/cron_monthly_reporting.sh /app/scripts/cron_monthly_reporting.sh
+COPY scripts/cron_weekly_reporting.sh /app/scripts/cron_weekly_reporting.sh
 COPY scripts/cron_sync_alpaca_fills.sh /app/scripts/cron_sync_alpaca_fills.sh
 COPY scripts/cron_sync_alpaca_account_portfolio_history.sh /app/scripts/cron_sync_alpaca_account_portfolio_history.sh
 COPY scripts/cron_compute_nav_daily.sh /app/scripts/cron_compute_nav_daily.sh
@@ -53,7 +53,7 @@ RUN chmod +x \
     /app/scripts/manage_wrapper.sh \
     /app/scripts/cron_healthcheck.sh \
     /app/scripts/cron_backup.sh \
-    /app/scripts/cron_monthly_reporting.sh \
+    /app/scripts/cron_weekly_reporting.sh \
     /app/scripts/cron_sync_alpaca_fills.sh \
     /app/scripts/cron_sync_alpaca_account_portfolio_history.sh \
     /app/scripts/cron_compute_nav_daily.sh

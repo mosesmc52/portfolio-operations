@@ -160,14 +160,13 @@ class Common(Configuration):
             "schedule": crontab(hour=1, minute=0),  # daily at 01:00
             "kwargs": {"days": 3},
         },
-        # Monthly orchestrator ONLY (previous-month report)
-        # Run on the 2nd of each month to avoid month-end data delays.
+        # Weekly reporting orchestrator.
         "run_monthly_reporting_workflow": {
             "task": "workflows.tasks.run_monthly_reporting_workflow_task",
             "schedule": crontab(
-                day_of_month=2,
-                hour=2,
-                minute=30,
+                day_of_week=5,
+                hour=18,
+                minute=0,
             ),
             "kwargs": {
                 "benchmark_symbol": "SPY",

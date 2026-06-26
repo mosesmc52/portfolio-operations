@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=America/New_York
+
+# Weekly reporting (runs Friday at 6:00 PM ET)
+0 18 * * 5 root /bin/bash /app/scripts/cron_weekly_reporting.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

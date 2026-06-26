@@ -3,7 +3,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from accounts.models import AccountBrokerCredential, CapitalFlow, ClientCapitalAccount
+from accounts.models import (
+    AccountBrokerCredential,
+    AccountPortfolioHistory,
+    CapitalFlow,
+    ClientCapitalAccount,
+)
 from accounts.services.capital_flows import apply_capital_flow
 from accounts.utils.external_refs import generate_external_ref
 from django import forms
@@ -151,6 +156,27 @@ class AccountBrokerCredentialAdmin(admin.ModelAdmin):
         return obj.masked_key_id
 
     masked_key_id_display.short_description = "Stored key ID"
+
+
+@admin.register(AccountPortfolioHistory)
+class AccountPortfolioHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "account",
+        "as_of_date",
+        "timeframe",
+        "equity",
+        "profit_loss",
+        "profit_loss_pct",
+        "broker",
+    )
+    list_filter = ("broker", "timeframe", "account__fund")
+    search_fields = (
+        "account__client__full_name",
+        "account__fund__strategy_code",
+        "account__fund__name",
+    )
+    date_hierarchy = "as_of_datetime"
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(CapitalFlow)

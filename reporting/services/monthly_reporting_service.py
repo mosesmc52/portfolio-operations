@@ -6,21 +6,19 @@ import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from io import BytesIO
-from typing import Optional, Sequence
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
+from django.template.loader import render_to_string
 from fees.models import FundExpense
 from funds.models import Fund
-from performance.models import NAVSnapshot
+from performance.models import MonthlySnapshot, NAVSnapshot
 from reporting.services.monte_carlo_chart import build_nav_monte_carlo_chart
 from services.llm.openai_client import OpenAITextService
 from services.market_data.price_provider import YFinancePriceProvider
-
-# ---------- helpers ----------
 
 
 def _markdown_to_html(md: str) -> str:
@@ -35,12 +33,9 @@ def _markdown_to_html(md: str) -> str:
 
 def _markdown_to_plain(md: str) -> str:
     s = md or ""
-    # headings: "## X" -> "X"
     s = re.sub(r"^\s{0,3}#{1,6}\s+", "", s, flags=re.MULTILINE)
-    # bold/italic markers
     s = s.replace("**", "").replace("__", "")
     s = s.replace("*", "")
-    # bullets "- x" keep as "• x"
     s = re.sub(r"^\s*-\s+", "• ", s, flags=re.MULTILINE)
     return s.strip()
 
@@ -60,11 +55,26 @@ def _to_pct_str(x: Optional[Decimal], *, ndp: int = 2) -> str:
     return f"{(x * Decimal('100')):.{ndp}f}%"
 
 
+def _to_signed_pct_str(x: Optional[Decimal], *, ndp: int = 1) -> str:
+    if x is None:
+        return "N/A"
+    sign = "+" if x >= 0 else ""
+    return f"{sign}{(x * Decimal('100')):.{ndp}f}%"
+
+
+def _to_currency_str(x: Optional[Decimal], *, ndp: int = 2) -> str:
+    if x is None:
+        return "N/A"
+    return f"${x:,.{ndp}f}"
+
+
+def _to_decimal_str(x: Optional[Decimal], *, ndp: int = 2) -> str:
+    if x is None:
+        return "N/A"
+    return f"{x:.{ndp}f}"
+
+
 def _compute_max_drawdown(nav: pd.Series) -> Optional[Decimal]:
-    """
-    nav: float series indexed by date (ascending).
-    Returns minimum drawdown (negative number), e.g. -0.12
-    """
     if nav is None or len(nav) < 2:
         return None
     running_max = nav.cummax()
@@ -107,7 +117,144 @@ def _get_earliest_nav_on_or_after(*, fund: Fund, d: date):
     return NAVSnapshot.objects.filter(fund=fund, date__gte=d).order_by("date").first()
 
 
-# ---------- result ----------
+def _get_monthly_snapshot(
+    *, fund: Fund, year: int, month: int
+) -> Optional[MonthlySnapshot]:
+    return MonthlySnapshot.objects.filter(
+        fund=fund,
+        as_of_month__year=year,
+        as_of_month__month=month,
+    ).first()
+
+
+def _compute_cagr(
+    *, start_nav: Decimal, end_nav: Decimal, start_date: date, end_date: date
+) -> Optional[Decimal]:
+    if start_nav <= 0 or end_nav <= 0 or end_date <= start_date:
+        return None
+    years = Decimal(str((end_date - start_date).days / 365.25))
+    if years <= 0:
+        return None
+    return (end_nav / start_nav) ** (Decimal("1") / years) - Decimal("1")
+
+
+def _compute_annualized_sharpe(nav: pd.Series) -> Optional[Decimal]:
+    if nav is None or len(nav) < 3:
+        return None
+    rets = nav.astype(float).pct_change().dropna()
+    if len(rets) < 2:
+        return None
+    vol = rets.std(ddof=1)
+    if not np.isfinite(vol) or vol <= 0:
+        return None
+    sharpe = (rets.mean() / vol) * np.sqrt(252.0)
+    if not np.isfinite(sharpe):
+        return None
+    return Decimal(str(sharpe))
+
+
+def _build_monthly_returns_table(
+    *, fund: Fund, period_end: date, years_back: int = 4
+) -> list[dict]:
+    start = date(period_end.year - years_back + 1, 1, 1)
+    qs = (
+        NAVSnapshot.objects.filter(fund=fund, date__gte=start, date__lte=period_end)
+        .order_by("date")
+        .values("date", "nav_per_unit")
+    )
+    rows = list(qs)
+    if not rows:
+        return []
+
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"])
+    df["nav_per_unit"] = df["nav_per_unit"].astype(float)
+    df["year"] = df["date"].dt.year
+    df["month"] = df["date"].dt.month
+
+    month_end = df.groupby(["year", "month"], as_index=False).last()
+    month_end["prev_nav"] = month_end["nav_per_unit"].shift(1)
+    month_end["month_return"] = (
+        month_end["nav_per_unit"] / month_end["prev_nav"]
+    ) - 1.0
+    month_end["month_return"] = month_end["month_return"].where(
+        month_end["year"].eq(month_end["year"].shift(1)),
+        np.nan,
+    )
+
+    labels = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+    out: list[dict] = []
+    for year in sorted(month_end["year"].unique()):
+        ydf = month_end[month_end["year"] == year]
+        month_map = {int(row["month"]): row["month_return"] for _, row in ydf.iterrows()}
+        first_idx = ydf.index[0]
+        year_total = None
+        prev_nav = month_end.loc[first_idx, "prev_nav"]
+        if prev_nav and np.isfinite(prev_nav) and prev_nav > 0:
+            year_total = Decimal(str((ydf.iloc[-1]["nav_per_unit"] / prev_nav) - 1.0))
+
+        months = []
+        for idx, label in enumerate(labels, start=1):
+            raw = month_map.get(idx)
+            if raw is None or not np.isfinite(raw):
+                months.append({"label": label, "value": "—", "class_name": ""})
+                continue
+            dec = Decimal(str(raw))
+            months.append(
+                {
+                    "label": label,
+                    "value": _to_signed_pct_str(dec),
+                    "class_name": "pos" if dec >= 0 else "neg",
+                }
+            )
+
+        out.append(
+            {
+                "year": str(year),
+                "months": months,
+                "year_total": _to_signed_pct_str(year_total)
+                if year_total is not None
+                else "—",
+            }
+        )
+    return out
+
+
+def _split_commentary_sections(commentary: str) -> tuple[list[str], list[str]]:
+    plain = _markdown_to_plain(commentary)
+    bullets: list[str] = []
+    paragraphs: list[str] = []
+    current: list[str] = []
+
+    for raw in plain.splitlines():
+        line = raw.strip()
+        if not line:
+            if current:
+                paragraphs.append(" ".join(current).strip())
+                current = []
+            continue
+        if line.startswith("• "):
+            bullets.append(line[2:].strip())
+            continue
+        current.append(line)
+
+    if current:
+        paragraphs.append(" ".join(current).strip())
+
+    return bullets[:5], paragraphs[:4]
 
 
 @dataclass
@@ -116,38 +263,29 @@ class MonthlyReportResult:
     fund_strategy_code: str
     period_start: date
     period_end: date
-
     nav_start_date: date
     nav_end_date: date
     nav_start: Decimal
     nav_end: Decimal
-
     fund_return: Decimal
     spy_return: Optional[Decimal]
     max_drawdown: Optional[Decimal]
     mgmt_fee_total: Decimal
-
     commentary: str
-
     html: str
     pdf_bytes: bytes
-
-    # Optional: stored/embedded chart bytes for reuse
     forecast_chart_png: bytes
-
-
-# ---------- main service ----------
 
 
 class MonthlyReportingService:
     """
     Monthly reporting agent that:
       - computes fund performance from NAVSnapshot (NAV per unit)
-      - benchmarks vs SPY (yfinance by default)
+      - benchmarks vs a configured monthly snapshot benchmark, defaulting to SPY
       - includes management fee totals from FundExpense
       - creates a Monte Carlo forecast chart based on historical NAV returns
       - uses OpenAI to generate commentary
-      - renders HTML and PDF (reportlab) with the chart embedded
+      - renders HTML and PDF from the same Django template
     """
 
     def __init__(
@@ -167,16 +305,16 @@ class MonthlyReportingService:
         fund_id: int,
         year: int,
         month: int,
-        horizon_days: int = 42,  # forecast business days (~2 months)
+        horizon_days: int = 42,
         n_sims: int = 2000,
-        hist_lookback_days: int = 365,  # used for MC parameter estimation context
+        hist_lookback_days: int = 365,
     ) -> MonthlyReportResult:
         fund = Fund.objects.get(id=fund_id)
         period_start, period_end = _month_bounds(year, month)
+        monthly_snapshot = _get_monthly_snapshot(fund=fund, year=year, month=month)
 
         nav_start_obj = _get_latest_nav_on_or_before(fund=fund, d=period_start)
         if not nav_start_obj:
-            # fund likely started mid-month; use first NAV on/after period_start
             nav_start_obj = _get_earliest_nav_on_or_after(fund=fund, d=period_start)
 
         nav_end_obj = _get_latest_nav_on_or_before(fund=fund, d=period_end)
@@ -195,52 +333,38 @@ class MonthlyReportingService:
 
         fund_return = (nav_end / nav_start) - Decimal("1")
 
-        # drawdown within month (based on available snapshots in month window)
-        nav_month_df = _get_nav_series_window(
-            fund=fund, start=period_start, end=period_end
-        )
+        nav_month_df = _get_nav_series_window(fund=fund, start=period_start, end=period_end)
         max_dd = None
         if not nav_month_df.empty and len(nav_month_df) >= 2:
             nav_series = nav_month_df.set_index("date")["nav_per_unit"]
             max_dd = _compute_max_drawdown(nav_series)
 
-        # management fees accrued during the month
         mgmt_fee_total = _sum_mgmt_fees(fund=fund, start=period_start, end=period_end)
+        benchmark_symbol = monthly_snapshot.benchmark_symbol if monthly_snapshot else "SPY"
 
-        # benchmark SPY (month)
-        spy_series_month = self.price_provider.get_daily_close(
-            symbol="SPY",
+        benchmark_series_month = self.price_provider.get_daily_close(
+            symbol=benchmark_symbol,
             start=period_start,
             end=period_end + timedelta(days=1),
         )
         spy_return = None
-        if len(spy_series_month.close) >= 2 and spy_series_month.close[0] > 0:
+        if len(benchmark_series_month.close) >= 2 and benchmark_series_month.close[0] > 0:
             spy_return = Decimal(
-                str((spy_series_month.close[-1] / spy_series_month.close[0]) - 1.0)
+                str(
+                    (benchmark_series_month.close[-1] / benchmark_series_month.close[0])
+                    - 1.0
+                )
             )
 
-        # --- Monte Carlo forecast chart ---
-        # Pull historical NAV for lookback window ending at period_end
         hist_start = period_end - timedelta(days=hist_lookback_days)
-        nav_hist_df = _get_nav_series_window(
-            fund=fund, start=hist_start, end=period_end
-        )
+        nav_hist_df = _get_nav_series_window(fund=fund, start=hist_start, end=period_end)
         if nav_hist_df.empty or len(nav_hist_df) < 10:
-            # fall back to all NAV snapshots up to period_end
-            qs_all = (
-                NAVSnapshot.objects.filter(fund=fund, date__lte=period_end)
-                .order_by("date")
-                .values("date", "nav_per_unit")
+            nav_hist_df = _get_nav_series_window(
+                fund=fund, start=fund.inception_date, end=period_end
             )
-            rows_all = list(qs_all)
-            nav_hist_df = pd.DataFrame(rows_all)
-            if not nav_hist_df.empty:
-                nav_hist_df["nav_per_unit"] = nav_hist_df["nav_per_unit"].astype(float)
-                nav_hist_df["date"] = pd.to_datetime(nav_hist_df["date"]).dt.date
 
-        # For benchmark overlay on chart, fetch more history so the line looks continuous
-        spy_series_hist = self.price_provider.get_daily_close(
-            symbol="SPY",
+        benchmark_series_hist = self.price_provider.get_daily_close(
+            symbol=benchmark_symbol,
             start=min(hist_start, period_start - timedelta(days=365)),
             end=period_end + timedelta(days=1),
         )
@@ -248,21 +372,54 @@ class MonthlyReportingService:
         chart_res = build_nav_monte_carlo_chart(
             hist_dates=nav_hist_df["date"].tolist(),
             hist_nav=[Decimal(str(x)) for x in nav_hist_df["nav_per_unit"].tolist()],
-            sim_start_date=nav_end_obj.date,  # forecast from the last available NAV date at/within month-end
+            sim_start_date=nav_end_obj.date,
             horizon_days=horizon_days,
             n_sims=n_sims,
             title=f"{fund.strategy_code}: NAV History + Monte Carlo Forecast",
-            benchmark_dates=spy_series_hist.dates,
-            benchmark_close=spy_series_hist.close,
+            benchmark_dates=benchmark_series_hist.dates,
+            benchmark_close=benchmark_series_hist.close,
         )
         forecast_chart_png = chart_res.png_bytes
 
-        # --- LLM commentary ---
+        nav_all_df = _get_nav_series_window(fund=fund, start=fund.inception_date, end=period_end)
+        inception_return = None
+        cagr = None
+        sharpe = None
+        ytd_return = None
+        if not nav_all_df.empty:
+            nav_all_df = nav_all_df.sort_values("date")
+            nav_all_series = nav_all_df.set_index("date")["nav_per_unit"]
+            inception_nav = Decimal(str(nav_all_df.iloc[0]["nav_per_unit"]))
+            first_nav_date = nav_all_df.iloc[0]["date"]
+
+            if inception_nav > 0:
+                inception_return = (nav_end / inception_nav) - Decimal("1")
+                cagr = _compute_cagr(
+                    start_nav=inception_nav,
+                    end_nav=nav_end,
+                    start_date=first_nav_date,
+                    end_date=nav_end_obj.date,
+                )
+
+            sharpe = _compute_annualized_sharpe(nav_all_series)
+
+            ytd_anchor_date = date(period_end.year, 1, 1)
+            ytd_anchor = _get_latest_nav_on_or_before(
+                fund=fund, d=ytd_anchor_date
+            ) or _get_earliest_nav_on_or_after(fund=fund, d=ytd_anchor_date)
+            if ytd_anchor:
+                ytd_nav = Decimal(ytd_anchor.nav_per_unit)
+                if ytd_nav > 0:
+                    ytd_return = (nav_end / ytd_nav) - Decimal("1")
+
         system = (
             "You are an investment reporting analyst. "
             "Write concise, professional monthly commentary for a systematic ETF strategy. "
             "Avoid guarantees or promissory language. "
             "Use neutral, compliance-safe phrasing."
+        )
+        benchmark_return_prompt = (
+            f"{spy_return:.2%}" if spy_return is not None else "N/A"
         )
         user = f"""
 Fund: {fund.strategy_code}
@@ -274,11 +431,9 @@ NAV:
 
 Performance:
 - Fund return: {fund_return:.2%}
+- Benchmark ({benchmark_symbol}) return: {benchmark_return_prompt}
 - Max drawdown (month, from NAV snapshots): {str(max_dd) if max_dd is not None else "N/A"}
 - Management fee accrued (month): ${mgmt_fee_total}
-
-Benchmark:
-spy_ret_str = f"{spy_return:.2%}" if spy_return is not None else "N/A"
 
 Strategy operations:
 - Weekly rebalance
@@ -287,7 +442,7 @@ Strategy operations:
 
 Please output:
 1) 3–5 bullet highlights
-2) 1 short paragraph on relative performance vs SPY (if SPY return is available)
+2) 1 short paragraph on relative performance vs the benchmark
 3) 1 short paragraph on risk (drawdown/volatility framing; no predictions)
 4) 1 operational note: rebalancing cadence + ETF universe size
 5) 1 disclosure line: "Past performance is not indicative of future results."
@@ -297,9 +452,12 @@ Please output:
             system=system, user=user, model=self.llm_model
         ).text
 
-        # --- Render HTML + PDF with embedded chart ---
+        commentary_bullets, commentary_paragraphs = _split_commentary_sections(commentary)
+        monthly_returns = _build_monthly_returns_table(fund=fund, period_end=period_end)
+
         html = self._render_html(
             fund=fund,
+            monthly_snapshot=monthly_snapshot,
             period_start=period_start,
             period_end=period_end,
             nav_start=nav_start,
@@ -312,23 +470,16 @@ Please output:
             mgmt_fee_total=mgmt_fee_total,
             commentary=commentary,
             forecast_chart_png=forecast_chart_png,
+            benchmark_symbol=benchmark_symbol,
+            ytd_return=ytd_return,
+            inception_return=inception_return,
+            cagr=cagr,
+            sharpe=sharpe,
+            monthly_returns=monthly_returns,
+            commentary_bullets=commentary_bullets,
+            commentary_paragraphs=commentary_paragraphs,
         )
-
-        pdf_bytes = self._render_pdf(
-            fund=fund,
-            period_start=period_start,
-            period_end=period_end,
-            nav_start=nav_start,
-            nav_end=nav_end,
-            nav_start_date=nav_start_obj.date,
-            nav_end_date=nav_end_obj.date,
-            fund_return=fund_return,
-            spy_return=spy_return,
-            max_drawdown=max_dd,
-            mgmt_fee_total=mgmt_fee_total,
-            commentary=commentary,
-            forecast_chart_png=forecast_chart_png,
-        )
+        pdf_bytes = self._render_pdf(html=html)
 
         return MonthlyReportResult(
             fund_id=fund.id,
@@ -353,6 +504,7 @@ Please output:
         self,
         *,
         fund: Fund,
+        monthly_snapshot: Optional[MonthlySnapshot],
         period_start: date,
         period_end: date,
         nav_start: Decimal,
@@ -365,228 +517,56 @@ Please output:
         mgmt_fee_total: Decimal,
         commentary: str,
         forecast_chart_png: bytes,
+        benchmark_symbol: str,
+        ytd_return: Optional[Decimal],
+        inception_return: Optional[Decimal],
+        cagr: Optional[Decimal],
+        sharpe: Optional[Decimal],
+        monthly_returns: list[dict],
+        commentary_bullets: list[str],
+        commentary_paragraphs: list[str],
     ) -> str:
         chart_b64 = base64.b64encode(forecast_chart_png).decode("ascii")
-        spy_text = _to_pct_str(spy_return)
-        dd_text = _to_pct_str(max_drawdown) if max_drawdown is not None else "N/A"
-
-        commentary_html = _markdown_to_html(commentary)
-
-        return f"""
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>{fund.strategy_code} Monthly Report</title>
-    <style>
-      body {{ font-family: Arial, sans-serif; margin: 32px; }}
-      h1 {{ margin: 0 0 4px 0; }}
-      .meta {{ color: #555; margin-bottom: 16px; }}
-      .grid {{
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 16px;
-      }}
-      .box {{
-        border: 1px solid #ddd;
-        padding: 12px;
-        border-radius: 10px;
-      }}
-      .kpi b {{
-        display: inline-block;
-        width: 175px;
-      }}
-      pre {{
-        white-space: pre-wrap;
-        margin: 0;
-      }}
-      img {{
-        max-width: 100%;
-        border: 1px solid #eee;
-        border-radius: 10px;
-      }}
-      .small {{
-        font-size: 12px;
-        color: #666;
-      }}
-      .box ul {{ margin: 8px 0 8px 18px; }}
-      .box li {{ margin: 4px 0; }}
-      .box h1, .box h2, .box h3 {{ margin: 8px 0; }}
-    </style>
-  </head>
-  <body>
-    <h1>{fund.strategy_code} — Monthly Tear Sheet</h1>
-    <div class="meta">{period_start} to {period_end}</div>
-
-    <div class="grid">
-      <div class="box">
-        <div class="kpi"><b>Fund return</b> {fund_return:.2%}</div>
-        <div class="kpi"><b>SPY return</b> {spy_text}</div>
-        <div class="kpi"><b>Max drawdown</b> {dd_text}</div>
-        <div class="kpi"><b>NAV start ({nav_start_date})</b> {nav_start:.2f}</div>
-        <div class="kpi"><b>NAV end ({nav_end_date})</b> {nav_end:.2f}</div>
-        <div class="kpi"><b>Mgmt fee accrued</b> ${mgmt_fee_total:.2f}</div>
-      </div>
-
-      <div class="box">
-        <b>Forecast (Illustrative Monte Carlo)</b>
-        <div class="small">Simulation based on historical NAV volatility; does not predict future results.</div>
-        <div style="margin-top:10px;">
-          <img src="data:image/png;base64,{chart_b64}" />
-        </div>
-      </div>
-    </div>
-
-    <h2>Commentary</h2>
-    <div class="box">{commentary_html}</div>
-
-    <h3>Disclosures</h3>
-    <div class="small">
-      For informational purposes only. Past performance is not indicative of future results.
-      Systematic strategy; weekly rebalance; 3–5 ETFs. Monte Carlo forecasts are illustrative.
-    </div>
-  </body>
-</html>
-""".strip()
-
-    def _render_pdf(
-        self,
-        *,
-        fund: Fund,
-        period_start: date,
-        period_end: date,
-        nav_start: Decimal,
-        nav_end: Decimal,
-        nav_start_date: date,
-        nav_end_date: date,
-        fund_return: Decimal,
-        spy_return: Optional[Decimal],
-        max_drawdown: Optional[Decimal],
-        mgmt_fee_total: Decimal,
-        commentary: str,
-        forecast_chart_png: bytes,
-    ) -> bytes:
-        """
-        PDF rendering using reportlab with embedded chart image.
-        """
-        from reportlab.lib.pagesizes import LETTER
-        from reportlab.lib.utils import ImageReader
-        from reportlab.pdfgen import canvas
-
-        buf = BytesIO()
-        c = canvas.Canvas(buf, pagesize=LETTER)
-        width, height = LETTER
-
-        left = 72
-        y = height - 72
-
-        # Title
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(left, y, f"{fund.strategy_code} — Monthly Report")
-        y -= 16
-        c.setFont("Helvetica", 10)
-        c.drawString(left, y, f"Period: {period_start} to {period_end}")
-        y -= 18
-
-        # KPIs
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(left, y, "Performance Summary")
-        y -= 14
-        c.setFont("Helvetica", 10)
-
-        def line(label: str, value: str):
-            nonlocal y
-            c.drawString(left, y, f"{label}: {value}")
-            y -= 12
-
-        line("Fund return", f"{fund_return:.2%}")
-        line("SPY return", f"{spy_return:.2%}" if spy_return is not None else "N/A")
-        line(
-            "Max drawdown (month)",
-            f"{max_drawdown:.2%}" if max_drawdown is not None else "N/A",
-        )
-        line("NAV start", f"{nav_start:.2f} ({nav_start_date})")
-        line("NAV end", f"{nav_end:.2f} ({nav_end_date})")
-        line("Mgmt fee accrued (month)", f"${mgmt_fee_total:.2f}")
-        y -= 10
-
-        # Chart
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(left, y, "NAV History + Monte Carlo Forecast (Illustrative)")
-        y -= 8
-        c.setFont("Helvetica", 9)
-        c.drawString(
-            left,
-            y,
-            "Simulation based on historical NAV volatility; does not predict future results.",
-        )
-        y -= 10
-
-        img = ImageReader(BytesIO(forecast_chart_png))
-        # Reserve space ~ 4.0 inches tall
-        img_w = width - 2 * left
-        img_h = 260
-        if y - img_h < 72:
-            c.showPage()
-            y = height - 72
-        c.drawImage(
-            img,
-            left,
-            y - img_h,
-            width=img_w,
-            height=img_h,
-            preserveAspectRatio=True,
-            mask="auto",
-        )
-        y -= img_h + 18
-
-        # Commentary
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(left, y, "Commentary")
-        y -= 14
-        c.setFont("Helvetica", 10)
-
-        # Simple wrapping
-        max_chars = 110
-        commentary_plain = _markdown_to_plain(commentary)
-        for raw_line in commentary_plain.splitlines():
-            text = raw_line.strip()
-            if not text:
-                y -= 10
-                continue
-
-            # wrap long lines
-            while len(text) > 0:
-                chunk = text[:max_chars]
-                text = text[max_chars:]
-                if y < 72:
-                    c.showPage()
-                    y = height - 72
-                    c.setFont("Helvetica", 10)
-                c.drawString(left, y, chunk)
-                y -= 12
-
-        # Disclosures
-        if y < 96:
-            c.showPage()
-            y = height - 72
-        y -= 10
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(left, y, "Disclosures")
-        y -= 12
-        c.setFont("Helvetica", 9)
-        c.drawString(
-            left,
-            y,
-            "For informational purposes only. Past performance is not indicative of future results.",
-        )
-        y -= 11
-        c.drawString(
-            left,
-            y,
-            "Systematic strategy; weekly rebalance; 3–5 ETFs. Monte Carlo forecasts are illustrative.",
+        return render_to_string(
+            "reporting/monthly_report.html",
+            {
+                "fund": fund,
+                "monthly_snapshot": monthly_snapshot,
+                "period_start": period_start,
+                "period_end": period_end,
+                "as_of_label": period_end.strftime("%B %d, %Y").upper(),
+                "chart_data_uri": f"data:image/png;base64,{chart_b64}",
+                "commentary_html": _markdown_to_html(commentary),
+                "commentary_bullets": commentary_bullets,
+                "commentary_paragraphs": commentary_paragraphs,
+                "benchmark_symbol": benchmark_symbol,
+                "fund_return_text": _to_signed_pct_str(fund_return),
+                "benchmark_return_text": _to_signed_pct_str(spy_return),
+                "ytd_return_text": _to_signed_pct_str(ytd_return),
+                "inception_return_text": _to_signed_pct_str(inception_return),
+                "cagr_text": _to_pct_str(cagr, ndp=1) if cagr is not None else "N/A",
+                "sharpe_text": _to_decimal_str(sharpe),
+                "max_drawdown_text": _to_signed_pct_str(max_drawdown),
+                "nav_start_text": _to_decimal_str(nav_start),
+                "nav_end_text": _to_decimal_str(nav_end),
+                "nav_start_date": nav_start_date,
+                "nav_end_date": nav_end_date,
+                "fee_text": _to_currency_str(mgmt_fee_total),
+                "aum_text": _to_currency_str(
+                    getattr(monthly_snapshot, "aum_eom", None)
+                ),
+                "monthly_returns": monthly_returns,
+                "inception_date": fund.inception_date,
+            },
         )
 
-        c.showPage()
-        c.save()
-        return buf.getvalue()
+    def _render_pdf(self, *, html: str) -> bytes:
+        try:
+            from weasyprint import HTML
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "WeasyPrint is required for monthly report PDF generation. "
+                "Install project dependencies before running monthly reporting."
+            ) from exc
+
+        return HTML(string=html).write_pdf()

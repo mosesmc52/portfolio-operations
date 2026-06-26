@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from accounts.models import ClientCapitalAccount
-from django.conf import settings
+from accounts.models import AccountBrokerCredential, ClientCapitalAccount
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -47,14 +46,35 @@ def compute_and_save_navsnapshot(
             "Total units <= 0. Create an initial subscription (CapitalFlow) first."
         )
 
-    svc = AlpacaValuationService(
-        key_id=settings.ALPACA_KEY_ID,
-        secret_key=settings.ALPACA_SECRET_KEY,
-        base_url=settings.ALPACA_BASE_URL,
+    credentials = list(
+        AccountBrokerCredential.objects.select_related("account", "account__fund")
+        .filter(
+            account__fund=fund,
+            broker=Fund.CUSTODIAN_ALPACA,
+            is_active=True,
+        )
+        .order_by("id")
     )
-    val = svc.get_account_valuation()
 
-    aum = _q_usd(val.equity)
+    if not credentials:
+        raise ValueError(
+            f"No active Alpaca account credentials configured for fund={fund.strategy_code}."
+        )
+
+    total_equity = Decimal("0")
+    total_cash = Decimal("0")
+    for credential in credentials:
+        key_id, secret_key = credential.get_alpaca_credentials()
+        svc = AlpacaValuationService(
+            key_id=key_id,
+            secret_key=secret_key,
+            base_url=credential.get_alpaca_base_url(),
+        )
+        val = svc.get_account_valuation()
+        total_equity += val.equity
+        total_cash += val.cash
+
+    aum = _q_usd(total_equity)
     nav_per_unit = _q_nav(aum / total_units)
 
     with transaction.atomic():
@@ -65,7 +85,7 @@ def compute_and_save_navsnapshot(
                 "nav_per_unit": nav_per_unit,
                 "total_units": total_units,
                 "aum": aum,
-                "cash_balance": _q_usd(val.cash),
+                "cash_balance": _q_usd(total_cash),
             },
         )
         return snap

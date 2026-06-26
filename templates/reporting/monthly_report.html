@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ fund.strategy_code }} Monthly Performance Update</title>
+<style>
+@page {
+  size: 850px 1100px;
+  margin: 0;
+}
+
+:root {
+  --navy: #091835;
+  --panel: #0e2347;
+  --blue: #1caeea;
+  --white: #ffffff;
+  --grey: #9fb0c9;
+  --grey-dim: #6e83a8;
+  --hairline: #1e3258;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Liberation Sans", Arial, sans-serif;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.page {
+  width: 850px;
+  min-height: 1100px;
+  padding: 50px 64px 24px 64px;
+}
+
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid var(--blue);
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.masthead-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--blue);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--blue);
+}
+
+.masthead-title {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+  text-transform: uppercase;
+  border-left: 1px solid var(--hairline);
+  padding-left: 16px;
+  line-height: 1.4;
+}
+
+.masthead-title b {
+  color: var(--white);
+  display: block;
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+}
+
+.masthead-right {
+  text-align: right;
+  font-size: 11px;
+  color: var(--grey);
+}
+
+.masthead-right .tag {
+  color: var(--blue);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+.engine-tag {
+  font-family: "Liberation Mono", monospace;
+  font-size: 10px;
+  color: var(--blue);
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.section-title {
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--white);
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+
+.report-sub {
+  color: var(--grey);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.placeholder-flag {
+  display: inline-block;
+  font-family: "Liberation Mono", monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.05em;
+  color: var(--navy);
+  background: var(--blue);
+  border-radius: 3px;
+  padding: 2px 7px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: 700;
+}
+
+.chart-img {
+  width: 100%;
+  display: block;
+  border-radius: 3px;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.metrics-bar {
+  display: flex;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  margin: 14px 0 16px 0;
+  overflow: hidden;
+}
+
+.metrics-bar .m {
+  flex: 1;
+  padding: 12px 16px;
+  border-right: 1px solid var(--hairline);
+}
+
+.metrics-bar .m:last-child { border-right: none; }
+
+.metrics-bar .m .v {
+  font-weight: 800;
+  font-size: 19px;
+  color: var(--white);
+}
+
+.metrics-bar .m .v.accent { color: var(--blue); }
+
+.metrics-bar .m .l {
+  font-size: 9px;
+  color: var(--grey-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.ptitle {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+
+.bullets {
+  padding-left: 18px;
+}
+
+.bullets li {
+  color: var(--grey);
+  margin-bottom: 7px;
+}
+
+.prose-block { margin-bottom: 12px; }
+
+.prose-block p,
+.commentary-html p,
+.commentary-html li {
+  color: var(--grey);
+  font-size: 11.3px;
+  line-height: 1.48;
+}
+
+.commentary-html ul,
+.commentary-html ol {
+  padding-left: 18px;
+  margin-top: 6px;
+}
+
+.kpi-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+
+.kpi {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.kpi .k { font-size: 9px; color: var(--grey-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.kpi .v { font-size: 12px; color: var(--white); margin-top: 2px; }
+
+table.returns {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 10.5px;
+}
+
+table.returns th {
+  font-weight: 600;
+  color: var(--grey-dim);
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--hairline);
+  text-align: right;
+}
+
+table.returns th:first-child { text-align: left; }
+
+table.returns td {
+  padding: 6px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--grey);
+  font-family: "Liberation Mono", monospace;
+  font-size: 9.7px;
+}
+
+table.returns td:first-child {
+  text-align: left;
+  font-family: "Liberation Sans", Arial, sans-serif;
+  color: var(--white);
+  font-weight: 700;
+  font-size: 10.5px;
+}
+
+table.returns td.pos { color: var(--blue); }
+table.returns td.year-total { color: var(--white); font-weight: 700; font-family: "Liberation Sans", Arial, sans-serif; }
+
+.footer {
+  margin-top: 14px;
+  height: 32px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--grey-dim);
+}
+
+.footer b { color: var(--grey); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="masthead">
+    <div class="masthead-left">
+      <div class="brand-mark">ZQ</div>
+      <div class="masthead-title">Monthly Performance<br><b>Update</b></div>
+    </div>
+    <div class="masthead-right">
+      <div class="tag">AS OF {{ as_of_label }}</div>
+      <div>{{ fund.name }}</div>
+    </div>
+  </div>
+
+  <div class="engine-tag">[ MONTHLY REPORT ] · SYSTEMATIC ETF STRATEGY</div>
+  <div class="section-title">{{ fund.strategy_code }}</div>
+  <div class="report-sub">
+    Benchmark: {{ benchmark_symbol }} · Inception {{ inception_date|date:"M Y" }}
+    <span class="placeholder-flag">LIVE DATA</span>
+  </div>
+  <div class="report-sub">Period: {{ period_start }} to {{ period_end }}</div>
+
+  <img class="chart-img" src="{{ chart_data_uri }}" alt="Performance chart">
+
+  <div class="metrics-bar">
+    <div class="m"><div class="v accent">{{ fund_return_text }}</div><div class="l">Month</div></div>
+    <div class="m"><div class="v accent">{{ ytd_return_text }}</div><div class="l">YTD</div></div>
+    <div class="m"><div class="v accent">{{ inception_return_text }}</div><div class="l">Since Inception</div></div>
+    <div class="m"><div class="v">{{ cagr_text }}</div><div class="l">CAGR</div></div>
+    <div class="m"><div class="v">{{ sharpe_text }}</div><div class="l">Sharpe</div></div>
+    <div class="m"><div class="v">{{ max_drawdown_text }}</div><div class="l">Max DD</div></div>
+  </div>
+
+  <div class="detail-grid">
+    <div>
+      <div class="card prose-block">
+        <div class="ptitle">Highlights</div>
+        {% if commentary_bullets %}
+        <ul class="bullets">
+          {% for bullet in commentary_bullets %}
+          <li>{{ bullet }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="commentary-html">{{ commentary_html|safe }}</div>
+        {% endif %}
+      </div>
+
+      {% if commentary_paragraphs %}
+        {% for paragraph in commentary_paragraphs %}
+        <div class="card prose-block">
+          <div class="ptitle">
+            {% if forloop.first %}Relative Performance{% elif forloop.counter == 2 %}Risk Discipline{% elif forloop.counter == 3 %}Operations{% else %}Commentary{% endif %}
+          </div>
+          <p>{{ paragraph }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="card prose-block">
+        <div class="ptitle">Commentary</div>
+        <div class="commentary-html">{{ commentary_html|safe }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div>
+      <div class="card prose-block">
+        <div class="ptitle">Report Metrics</div>
+        <div class="kpi-list">
+          <div class="kpi"><div class="k">Benchmark Return</div><div class="v">{{ benchmark_return_text }}</div></div>
+          <div class="kpi"><div class="k">Management Fees</div><div class="v">{{ fee_text }}</div></div>
+          <div class="kpi"><div class="k">AUM EOM</div><div class="v">{{ aum_text }}</div></div>
+          <div class="kpi"><div class="k">Start NAV</div><div class="v">{{ nav_start_text }} on {{ nav_start_date }}</div></div>
+          <div class="kpi"><div class="k">End NAV</div><div class="v">{{ nav_end_text }} on {{ nav_end_date }}</div></div>
+          <div class="kpi"><div class="k">Benchmark</div><div class="v">{{ benchmark_symbol }}</div></div>
+        </div>
+      </div>
+
+      <div class="card prose-block">
+        <div class="ptitle">Disclosures</div>
+        <p>For informational purposes only. Past performance is not indicative of future results.</p>
+        <p>Systematic strategy; weekly rebalance; 3 to 5 ETFs. Monte Carlo forecasts are illustrative and do not predict future results.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card prose-block" style="margin-top:16px;">
+    <div class="ptitle">Monthly Net Returns</div>
+    <table class="returns">
+      <tr>
+        <th>Year</th>
+        <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+        <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Year</th>
+      </tr>
+      {% for row in monthly_returns %}
+      <tr>
+        <td>{{ row.year }}</td>
+        {% for month in row.months %}
+        <td class="{{ month.class_name }}">{{ month.value }}</td>
+        {% endfor %}
+        <td class="year-total">{{ row.year_total }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="footer">
+    <div>ZillaQuant, Inc. · Confidential monthly reporting</div>
+    <div><b>{{ fund.strategy_code }}</b></div>
+  </div>
+</div>
+</body>
+</html>

@@ -5,9 +5,15 @@ from django.db import models
 
 class TradeFill(models.Model):
     fund = models.ForeignKey("funds.Fund", on_delete=models.CASCADE)
+    account = models.ForeignKey(
+        "accounts.ClientCapitalAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
 
     broker = models.CharField(max_length=16)  # ALPACA
-    external_fill_id = models.CharField(max_length=128, unique=True)
+    external_fill_id = models.CharField(max_length=128)
 
     symbol = models.CharField(max_length=32)
     side = models.CharField(max_length=8)  # buy/sell
@@ -20,3 +26,11 @@ class TradeFill(models.Model):
     raw = models.JSONField()
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "external_fill_id"],
+                name="uq_tradefill_account_external_fill_id",
+            )
+        ]

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{{ fund.strategy_code }} Monthly Performance Update</title>
+<title>{{ fund.strategy_code }} Weekly Performance Update</title>
 <style>
 @page {
   size: 850px 1100px;
@@ -291,7 +291,7 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
   <div class="masthead">
     <div class="masthead-left">
       <div class="brand-mark">ZQ</div>
-      <div class="masthead-title">Monthly Performance<br><b>Update</b></div>
+      <div class="masthead-title">Weekly Performance<br><b>Update</b></div>
     </div>
     <div class="masthead-right">
       <div class="tag">AS OF {{ as_of_label }}</div>
@@ -299,7 +299,7 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
     </div>
   </div>
 
-  <div class="engine-tag">[ MONTHLY REPORT ] · SYSTEMATIC ETF STRATEGY</div>
+  <div class="engine-tag">[ WEEKLY REPORT ] · SYSTEMATIC ETF STRATEGY</div>
   <div class="section-title">{{ fund.strategy_code }}</div>
   <div class="report-sub">
     Benchmark: {{ benchmark_symbol }} · Inception {{ inception_date|date:"M Y" }}
@@ -310,69 +310,22 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
   <img class="chart-img" src="{{ chart_data_uri }}" alt="Performance chart">
 
   <div class="metrics-bar">
-    <div class="m"><div class="v accent">{{ fund_return_text }}</div><div class="l">Month</div></div>
+    <div class="m"><div class="v accent">{{ fund_return_text }}</div><div class="l">Fund</div></div>
+    <div class="m"><div class="v accent">{{ benchmark_return_text }}</div><div class="l">Benchmark</div></div>
     <div class="m"><div class="v accent">{{ ytd_return_text }}</div><div class="l">YTD</div></div>
-    <div class="m"><div class="v accent">{{ inception_return_text }}</div><div class="l">Since Inception</div></div>
+    <div class="m"><div class="v accent">{{ inception_return_text }}</div><div class="l">Since Inc.</div></div>
     <div class="m"><div class="v">{{ cagr_text }}</div><div class="l">CAGR</div></div>
     <div class="m"><div class="v">{{ sharpe_text }}</div><div class="l">Sharpe</div></div>
     <div class="m"><div class="v">{{ max_drawdown_text }}</div><div class="l">Max DD</div></div>
   </div>
 
   <div class="detail-grid">
-    <div>
-      <div class="card prose-block">
-        <div class="ptitle">Highlights</div>
-        {% if commentary_bullets %}
-        <ul class="bullets">
-          {% for bullet in commentary_bullets %}
-          <li>{{ bullet }}</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="commentary-html">{{ commentary_html|safe }}</div>
-        {% endif %}
-      </div>
-
-      {% if commentary_paragraphs %}
-        {% for paragraph in commentary_paragraphs %}
-        <div class="card prose-block">
-          <div class="ptitle">
-            {% if forloop.first %}Relative Performance{% elif forloop.counter == 2 %}Risk Discipline{% elif forloop.counter == 3 %}Operations{% else %}Commentary{% endif %}
-          </div>
-          <p>{{ paragraph }}</p>
-        </div>
-        {% endfor %}
-      {% else %}
-      <div class="card prose-block">
-        <div class="ptitle">Commentary</div>
-        <div class="commentary-html">{{ commentary_html|safe }}</div>
-      </div>
-      {% endif %}
-    </div>
-
-    <div>
-      <div class="card prose-block">
-        <div class="ptitle">Report Metrics</div>
-        <div class="kpi-list">
-          <div class="kpi"><div class="k">Benchmark Return</div><div class="v">{{ benchmark_return_text }}</div></div>
-          <div class="kpi"><div class="k">Management Fees</div><div class="v">{{ fee_text }}</div></div>
-          <div class="kpi"><div class="k">AUM EOM</div><div class="v">{{ aum_text }}</div></div>
-          <div class="kpi"><div class="k">Start NAV</div><div class="v">{{ nav_start_text }} on {{ nav_start_date }}</div></div>
-          <div class="kpi"><div class="k">End NAV</div><div class="v">{{ nav_end_text }} on {{ nav_end_date }}</div></div>
-          <div class="kpi"><div class="k">Benchmark</div><div class="v">{{ benchmark_symbol }}</div></div>
-        </div>
-      </div>
-
-      <div class="card prose-block">
-        <div class="ptitle">Disclosures</div>
-        <p>For informational purposes only. Past performance is not indicative of future results.</p>
-        <p>Systematic strategy; weekly rebalance; 3 to 5 ETFs. Monte Carlo forecasts are illustrative and do not predict future results.</p>
-      </div>
-    </div>
+    <div></div>
+    <div></div>
   </div>
 
   <div class="card prose-block" style="margin-top:16px;">
-    <div class="ptitle">Monthly Net Returns</div>
+    <div class="ptitle">Weekly Net Returns</div>
     <table class="returns">
       <tr>
         <th>Year</th>
@@ -392,7 +345,7 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
   </div>
 
   <div class="footer">
-    <div>ZillaQuant, Inc. · Confidential monthly reporting</div>
+    <div>ZillaQuant, Inc. · Confidential weekly reporting</div>
     <div><b>{{ fund.strategy_code }}</b></div>
   </div>
 </div>

@@ -30,14 +30,35 @@ def _dates_bdays(start: date, n: int) -> list[date]:
 
 
 def _render_placeholder(*, title: str, message: str) -> MCChartResult:
+    bg = "#0e2347"
+    accent = "#1baeea"
     fig = plt.figure(figsize=(12, 6))
+    fig.patch.set_facecolor(bg)
     ax = plt.gca()
+    ax.set_facecolor(bg)
     ax.axis("off")
-    ax.text(0.5, 0.60, title, ha="center", va="center", fontsize=16, fontweight="bold")
-    ax.text(0.5, 0.45, message, ha="center", va="center", fontsize=12)
+    ax.text(
+        0.5,
+        0.60,
+        title,
+        ha="center",
+        va="center",
+        fontsize=16,
+        fontweight="bold",
+        color=accent,
+    )
+    ax.text(
+        0.5,
+        0.45,
+        message,
+        ha="center",
+        va="center",
+        fontsize=12,
+        color=accent,
+    )
     buf = BytesIO()
     plt.tight_layout()
-    fig.savefig(buf, format="png", dpi=150)
+    fig.savefig(buf, format="png", dpi=150, facecolor=bg, edgecolor=bg)
     plt.close(fig)
     return MCChartResult(png_bytes=buf.getvalue(), skipped=True, reason=message)
 

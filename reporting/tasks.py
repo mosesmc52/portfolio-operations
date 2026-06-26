@@ -153,13 +153,13 @@ def _get_recipients_for_fund(
 
 
 def _subject_for_snapshot(snap: MonthlySnapshot) -> str:
-    return f"{snap.fund.strategy_code} Monthly Report — {snap.as_of_month:%Y-%m}"
+    return f"{snap.fund.strategy_code} Weekly Report — {snap.as_of_month:%Y-%m}"
 
 
 def _build_body_text(*, snap: MonthlySnapshot, artifact: MonthlyReportArtifact) -> str:
     fund = snap.fund
     lines = [
-        f"{fund.strategy_code} Monthly Report",
+        f"{fund.strategy_code} Weekly Report",
         f"Period end: {snap.as_of_month:%Y-%m-%d}",
         "",
         "Summary:",

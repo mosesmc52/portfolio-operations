@@ -87,13 +87,13 @@ def _render_history_only(
     hist_start_date = df.iloc[0]["date"]
     hist_end_date = df.iloc[-1]["date"]
 
-    bg = "#0b1d3a"
-    panel = "#102445"
-    grid = "#27405f"
-    fund_line = "#f5f8fc"
-    benchmark_line = "#b8b3a1"
-    fill = "#8c845e"
-    text = "#efe3cd"
+    bg = "#142e57"
+    panel = "#142e57"
+    grid = "#3a5378"
+    fund_line = "#12b8f0"
+    benchmark_line = "#c3cfdf"
+    fill = "#0b7fb3"
+    text = "#d6e0ee"
 
     fig = plt.figure(figsize=(12, 6))
     fig.patch.set_facecolor(bg)
@@ -111,7 +111,7 @@ def _render_history_only(
     ax.plot(
         df["date"],
         df["nav"],
-        linewidth=2.2,
+        linewidth=3.0,
         marker="o" if len(df) <= 12 else None,
         color=fund_line,
         label="Historical NAV",
@@ -143,9 +143,10 @@ def _render_history_only(
                 ax.plot(
                     bdf["date"],
                     bdf["bench_norm"],
-                    linewidth=1.35,
+                    linewidth=2.0,
                     linestyle="--",
                     color=benchmark_line,
+                    alpha=0.9,
                     label="Benchmark (normalized)",
                     zorder=2,
                 )
@@ -155,13 +156,14 @@ def _render_history_only(
     ax.set_ylabel("NAV per unit", color=text, fontsize=11)
     ax.tick_params(axis="x", colors=text, labelsize=10)
     ax.tick_params(axis="y", colors=text, labelsize=10)
-    ax.grid(True, color=grid, alpha=0.35, linewidth=0.8)
+    ax.grid(True, axis="y", color=grid, alpha=0.45, linewidth=0.8)
+    ax.grid(True, axis="x", color=grid, alpha=0.2, linewidth=0.6)
     for spine in ax.spines.values():
         spine.set_color(grid)
         spine.set_linewidth(1.0)
 
     legend = ax.legend(
-        loc="upper left",
+        loc="upper right",
         frameon=False,
         ncol=2,
         fontsize=10,

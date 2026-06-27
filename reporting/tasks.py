@@ -175,7 +175,7 @@ def _build_body_text(*, snap: MonthlySnapshot, artifact: MonthlyReportArtifact) 
     lines = [
         "The PDF report is attached.",
         "",
-        "Disclosure: For informational purposes only. Past performance is not indicative of future results.",
+        "Disclosure: Past performance is not indicative of future results.",
     ]
     return "\n".join(lines)
 
@@ -279,9 +279,11 @@ def email_latest_monthly_report_to_clients_task(
         artifact.pdf_file.close()
 
     if not generic_pdf_bytes:
-        raise ValueError("Weekly report PDF is empty; pdf_file.read() returned 0 bytes.")
+        raise ValueError(
+            "Weekly report PDF is empty; pdf_file.read() returned 0 bytes."
+        )
 
-    filename = f"{snap.fund.strategy_code}-{snap.as_of_month:%Y-%m}.pdf"
+    filename = f"adaptive-multi-strategy-update-{snap.as_of_month:%m-%d-%Y}.pdf"
 
     subject = f"{subject_prefix}{_subject_for_snapshot(snap)}"
     body_text = _build_body_text(snap=snap, artifact=artifact)

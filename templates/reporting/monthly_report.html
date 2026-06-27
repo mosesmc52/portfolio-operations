@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{{ fund.strategy_code }} Weekly Performance Update</title>
+<title>Weekly Performance Update</title>
 <style>
 @page {
   size: 850px 1100px;
@@ -295,12 +295,12 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
     </div>
     <div class="masthead-right">
       <div class="tag">AS OF {{ as_of_label }}</div>
-      <div>{{ fund.name }}</div>
+      <div>{{ client_display_name|default:"Client Copy" }}</div>
     </div>
   </div>
 
   <div class="engine-tag">[ WEEKLY REPORT ] · SYSTEMATIC ETF STRATEGY</div>
-  <div class="section-title">{{ fund.strategy_code }}</div>
+  <div class="section-title">Adaptive Multi-Strategy</div>
   <div class="report-sub">
     Benchmark: {{ benchmark_symbol }} · Inception {{ inception_date|date:"M Y" }}
     <span class="placeholder-flag">LIVE DATA</span>
@@ -346,7 +346,7 @@ table.returns td.year-total { color: var(--white); font-weight: 700; font-family
 
   <div class="footer">
     <div>ZillaQuant, Inc. · Confidential weekly reporting</div>
-    <div><b>{{ fund.strategy_code }}</b></div>
+    <div><b>Weekly Report</b></div>
   </div>
 </div>
 </body>

@@ -375,7 +375,7 @@ class MonthlyReportingService:
             sim_start_date=nav_end_obj.date,
             horizon_days=horizon_days,
             n_sims=n_sims,
-            title=f"{fund.strategy_code}: NAV History vs Benchmark",
+            title="NAV History vs Benchmark",
             benchmark_dates=benchmark_series_hist.dates,
             benchmark_close=benchmark_series_hist.close,
         )

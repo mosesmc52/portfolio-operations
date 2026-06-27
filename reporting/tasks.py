@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
 from typing import Iterable, List, Optional, Tuple
 
 from accounts.models import ClientCapitalAccount
@@ -119,7 +120,7 @@ def _get_recipients_for_fund(
     *,
     fund_id: int,
     include_only_active_clients: bool = True,
-) -> list[str]:
+) -> list[tuple[str, str]]:
     """
     Clients who have >0 units in this fund and have at least one valid email.
     Returns a de-duplicated list of valid email addresses, splitting
@@ -139,7 +140,7 @@ def _get_recipients_for_fund(
     if include_only_active_clients:
         qs = qs.filter(status=getattr(Client, "ACTIVE", "active"))
 
-    recipients: list[str] = []
+    recipients: list[tuple[str, str]] = []
     seen: set[str] = set()
     for client in qs:
         for email in _split_emails(client.email):
@@ -147,9 +148,23 @@ def _get_recipients_for_fund(
             if key in seen:
                 continue
             seen.add(key)
-            recipients.append(email)
+            recipients.append((email, client.full_name))
 
     return recipients
+
+
+def _personalize_report_html(*, html_text: str, client_full_name: str) -> str:
+    return html_text.replace("Client Copy", escape(client_full_name))
+
+
+def _render_pdf_from_html(*, html_text: str) -> bytes:
+    try:
+        from weasyprint import HTML
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "WeasyPrint is required for personalized PDF generation during email send."
+        ) from exc
+    return HTML(string=html_text).write_pdf()
 
 
 def _subject_for_snapshot(snap: MonthlySnapshot) -> str:
@@ -157,25 +172,7 @@ def _subject_for_snapshot(snap: MonthlySnapshot) -> str:
 
 
 def _build_body_text(*, snap: MonthlySnapshot, artifact: MonthlyReportArtifact) -> str:
-    fund = snap.fund
     lines = [
-        f"{fund.strategy_code} Weekly Report",
-        f"Period end: {snap.as_of_month:%Y-%m-%d}",
-        "",
-        "Summary:",
-        f"- Fund return: {snap.fund_return:.2%}",
-        (
-            f"- Benchmark ({snap.benchmark_symbol}) return: {snap.benchmark_return:.2%}"
-            if snap.benchmark_return is not None
-            else f"- Benchmark ({snap.benchmark_symbol}) return: N/A"
-        ),
-        (
-            f"- Excess return: {snap.excess_return:.2%}"
-            if snap.excess_return is not None
-            else "- Excess return: N/A"
-        ),
-        f"- AUM (EOM): ${snap.aum_eom}",
-        "",
         "The PDF report is attached.",
         "",
         "Disclosure: For informational purposes only. Past performance is not indicative of future results.",
@@ -266,17 +263,23 @@ def email_latest_monthly_report_to_clients_task(
             as_of_month=str(snap.as_of_month),
         ).__dict__
 
-    # 3) Read attachment safely (important with FileField)
+    html_text: str | None = None
+    if artifact.html_file:
+        artifact.html_file.open("rb")
+        try:
+            html_text = artifact.html_file.read().decode("utf-8")
+        finally:
+            artifact.html_file.close()
+
+    # 3) Read generic attachment safely as fallback
     artifact.pdf_file.open("rb")
     try:
-        pdf_bytes = artifact.pdf_file.read()
+        generic_pdf_bytes = artifact.pdf_file.read()
     finally:
         artifact.pdf_file.close()
 
-    if not pdf_bytes:
-        raise ValueError(
-            "Monthly report PDF is empty; pdf_file.read() returned 0 bytes."
-        )
+    if not generic_pdf_bytes:
+        raise ValueError("Weekly report PDF is empty; pdf_file.read() returned 0 bytes.")
 
     filename = f"{snap.fund.strategy_code}-{snap.as_of_month:%Y-%m}.pdf"
 
@@ -297,7 +300,7 @@ def email_latest_monthly_report_to_clients_task(
     sent = 0
     skipped_no_email = 0
 
-    for email in recipients:
+    for email, client_full_name in recipients:
         email = (email or "").strip()
         if not email:
             skipped_no_email += 1
@@ -305,6 +308,14 @@ def email_latest_monthly_report_to_clients_task(
 
         if dry_run:
             continue
+
+        pdf_bytes = generic_pdf_bytes
+        if html_text:
+            personalized_html = _personalize_report_html(
+                html_text=html_text,
+                client_full_name=client_full_name,
+            )
+            pdf_bytes = _render_pdf_from_html(html_text=personalized_html)
 
         msg = EmailMessage(
             subject=subject,

@@ -87,15 +87,35 @@ def _render_history_only(
     hist_start_date = df.iloc[0]["date"]
     hist_end_date = df.iloc[-1]["date"]
 
-    fig = plt.figure(figsize=(12, 6))
-    ax = plt.gca()
+    bg = "#0b1d3a"
+    panel = "#102445"
+    grid = "#27405f"
+    fund_line = "#f5f8fc"
+    benchmark_line = "#b8b3a1"
+    fill = "#8c845e"
+    text = "#efe3cd"
 
+    fig = plt.figure(figsize=(12, 6))
+    fig.patch.set_facecolor(bg)
+    ax = plt.gca()
+    ax.set_facecolor(panel)
+
+    ax.fill_between(
+        df["date"],
+        df["nav"],
+        [df["nav"].min()] * len(df),
+        color=fill,
+        alpha=0.22,
+        zorder=1,
+    )
     ax.plot(
         df["date"],
         df["nav"],
-        linewidth=2.5,
+        linewidth=2.2,
         marker="o" if len(df) <= 12 else None,
+        color=fund_line,
         label="Historical NAV",
+        zorder=3,
     )
 
     if (
@@ -123,16 +143,34 @@ def _render_history_only(
                 ax.plot(
                     bdf["date"],
                     bdf["bench_norm"],
-                    linewidth=1.75,
+                    linewidth=1.35,
                     linestyle="--",
+                    color=benchmark_line,
                     label="Benchmark (normalized)",
+                    zorder=2,
                 )
 
-    ax.set_title(title)
-    ax.set_xlabel("Date")
-    ax.set_ylabel("NAV per unit")
-    ax.grid(True, alpha=0.25)
-    ax.legend(loc="upper left")
+    ax.set_title(title, color=text, fontsize=15, fontweight="bold", pad=14)
+    ax.set_xlabel("")
+    ax.set_ylabel("NAV per unit", color=text, fontsize=11)
+    ax.tick_params(axis="x", colors=text, labelsize=10)
+    ax.tick_params(axis="y", colors=text, labelsize=10)
+    ax.grid(True, color=grid, alpha=0.35, linewidth=0.8)
+    for spine in ax.spines.values():
+        spine.set_color(grid)
+        spine.set_linewidth(1.0)
+
+    legend = ax.legend(
+        loc="upper left",
+        frameon=False,
+        ncol=2,
+        fontsize=10,
+        handlelength=1.6,
+        handletextpad=0.5,
+        columnspacing=1.0,
+    )
+    for t in legend.get_texts():
+        t.set_color(text)
     if message:
         ax.text(
             0.01,
@@ -142,11 +180,12 @@ def _render_history_only(
             fontsize=9,
             alpha=0.8,
             va="bottom",
+            color=text,
         )
 
     buf = BytesIO()
     plt.tight_layout()
-    fig.savefig(buf, format="png", dpi=150)
+    fig.savefig(buf, format="png", dpi=150, facecolor=bg, edgecolor=bg)
     plt.close(fig)
     return MCChartResult(png_bytes=buf.getvalue(), skipped=True, reason=message)
 
